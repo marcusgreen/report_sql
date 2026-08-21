@@ -1,0 +1,14 @@
+# Scratch session/dev logs, not part of the plugin.
+SESSION-*.md
+
+# Local dev tooling / generated ERD key data, not part of the plugin.
+tools/
+
+# Demo screen recordings, not part of the plugin.
+*.mp4
+*.webm
+video/
+
+# Local demo/recording harness and scratch design notes, not part of the plugin.
+cli/record_report_sql.js
+rbfilter.md

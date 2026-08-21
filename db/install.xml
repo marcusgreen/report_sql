@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="report/sql/db" VERSION="20260803" COMMENT="Ad-hoc reports schema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="report_sql_query" COMMENT="Saved ad-hoc SQL queries.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="description" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="querysql" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="ownerid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="draft" SEQUENCE="false"
+               COMMENT="draft|published|disabled"/>
+        <FIELD NAME="viewname" TYPE="char" LENGTH="64" NOTNULL="false" SEQUENCE="false"
+               COMMENT="DB view name (without prefix) when published"/>
+        <FIELD NAME="columnsmeta" TYPE="text" NOTNULL="false" SEQUENCE="false"
+               COMMENT="JSON cache of introspected column types"/>
+        <FIELD NAME="chartmeta" TYPE="text" NOTNULL="false" SEQUENCE="false"
+               COMMENT="JSON chart config: type, xcol, ycol, rowlimit"/>
+        <FIELD NAME="audiencemeta" TYPE="text" NOTNULL="false" SEQUENCE="false"
+               COMMENT="JSON audience choice: {type, roles?, cohorts?, users?}. NULL means auto."/>
+        <FIELD NAME="reportid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"
+               COMMENT="FK into reportbuilder_report once published"/>
+        <FIELD NAME="chartreportid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"
+               COMMENT="FK into reportbuilder_report for the companion single-cell chart report; NULL when no chart configured"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"
+               COMMENT="Course this query is bound to; 0 means site-wide."/>
+        <FIELD NAME="visible" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false"
+               COMMENT="Hidden queries are excluded from the per-course list."/>
+        <FIELD NAME="useridcolumn" TYPE="char" LENGTH="64" NOTNULL="false" SEQUENCE="false"
+               COMMENT="Output column matched against the viewing user's id; NULL = no per-user filter."/>
+        <FIELD NAME="coursecolumn" TYPE="char" LENGTH="64" NOTNULL="false" SEQUENCE="false"
+               COMMENT="Output column holding a course id; when set, rows are limited to courses the viewer teaches. NULL = no teacher-course filter."/>
+        <FIELD NAME="pagecoursecolumn" TYPE="char" LENGTH="64" NOTNULL="false" SEQUENCE="false"
+               COMMENT="Output column holding a course id; when the report is shown in a block on a course page, rows are limited to that page's course. NULL = no page-course filter."/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="ownerid" TYPE="foreign" FIELDS="ownerid" REFTABLE="user" REFFIELDS="id"/>
+        <KEY NAME="reportid" TYPE="foreign" FIELDS="reportid" REFTABLE="reportbuilder_report" REFFIELDS="id"/>
+        <KEY NAME="chartreportid" TYPE="foreign" FIELDS="chartreportid" REFTABLE="reportbuilder_report" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="status" UNIQUE="false" FIELDS="status"/>
+        <INDEX NAME="viewname" UNIQUE="true" FIELDS="viewname"/>
+        <INDEX NAME="courseid" UNIQUE="false" FIELDS="courseid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="report_sql_queryview" COMMENT="One row per view of a published report source.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="queryid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"
+               COMMENT="The report-sources query whose report was viewed."/>
+        <FIELD NAME="reportid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"
+               COMMENT="The reportbuilder_report id actually opened (a query may own several)."/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"
+               COMMENT="The user who opened the report."/>
+        <FIELD NAME="timeviewed" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="queryid" TYPE="foreign" FIELDS="queryid" REFTABLE="report_sql_query" REFFIELDS="id"/>
+        <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="queryid-timeviewed" UNIQUE="false" FIELDS="queryid, timeviewed"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>

@@ -1,0 +1,58 @@
+{
+  "name": "tourname,report_sql",
+  "description": "tourdesc,report_sql",
+  "pathmatch": "/report/sql/index.php%",
+  "enabled": "1",
+  "sortorder": "0",
+  "endtourlabel": "",
+  "configdata": "{\"placement\":\"top\",\"orphan\":\"0\",\"backdrop\":\"1\",\"reflex\":\"0\",\"filtervalues\":{\"category\":[],\"course\":[],\"courseformat\":[],\"role\":[],\"theme\":[],\"cssselector\":[]}}",
+  "displaystepnumbers": true,
+  "version": "2026082000",
+  "steps": [
+    {
+      "title": "tourstep1title,report_sql",
+      "content": "tourstep1content,report_sql",
+      "contentformat": "1",
+      "targettype": "0",
+      "targetvalue": "#rs-tour-newbutton",
+      "sortorder": "0",
+      "configdata": "{\"placement\":\"bottom\"}"
+    },
+    {
+      "title": "tourstep2title,report_sql",
+      "content": "tourstep2content,report_sql",
+      "contentformat": "1",
+      "targettype": "0",
+      "targetvalue": ".reportbuilder-report",
+      "sortorder": "1",
+      "configdata": "{\"placement\":\"top\"}"
+    },
+    {
+      "title": "tourstep3title,report_sql",
+      "content": "tourstep3content,report_sql",
+      "contentformat": "1",
+      "targettype": "0",
+      "targetvalue": ".reportbuilder-report .badge",
+      "sortorder": "2",
+      "configdata": "{\"placement\":\"left\"}"
+    },
+    {
+      "title": "tourstep4title,report_sql",
+      "content": "tourstep4content,report_sql",
+      "contentformat": "1",
+      "targettype": "0",
+      "targetvalue": ".reportbuilder-report .rs-actions-col",
+      "sortorder": "3",
+      "configdata": "{\"placement\":\"left\"}"
+    },
+    {
+      "title": "tourstep5title,report_sql",
+      "content": "tourstep5content,report_sql",
+      "contentformat": "1",
+      "targettype": "0",
+      "targetvalue": ".reportbuilder-report .action-menu",
+      "sortorder": "4",
+      "configdata": "{\"placement\":\"left\"}"
+    }
+  ]
+}

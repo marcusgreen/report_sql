@@ -1,0 +1,55 @@
+/* Cap the query Name column so long names wrap within a bounded width instead of stretching the
+   column (the RB system report has no fixed column widths; main used a 33% html_table size). */
+.rs-query-name {
+    display: inline-block;
+    max-width: 36rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Collapse the Actions column to the width of its buttons. In an auto-layout table a cell with a
+   tiny width + nowrap content renders at its min-content size, so the slack the column used to
+   absorb (the empty gap before the kebab menu) is handed back to the wider Name column instead. */
+.reportbuilder-table .rs-actions-col {
+    width: 1px;
+    white-space: nowrap;
+}
+
+/* Publish (draft rows) and Unpublish (published rows) are the same status-exclusive button. Give
+   them a shared min-width so the shorter "Publish" is as wide as "Unpublish" and the Actions column
+   stays a consistent width down the list. */
+.rs-publish-toggle {
+    min-width: 6.5rem;
+}
+
+/* Inline SQL preview: let the embedded Report Builder table use the full width and scroll
+   horizontally rather than be squeezed (and its column headers clipped) by the surrounding
+   form layout. */
+#rs-preview {
+    overflow-x: auto;
+}
+
+#rs-preview th,
+#rs-preview td {
+    white-space: nowrap;
+}
+
+#rs-preview th,
+#rs-preview th > a {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+/* Preview is a fixed 5-row snapshot — no navigation, so hide the pager and the "Show all" link. */
+#rs-preview .pagination,
+#rs-preview [data-action="showcount"] {
+    display: none;
+}
+
+/* Bundled user documentation (docs.php): keep embedded screenshots inside the content column
+   instead of overflowing to the right when the image is wider than the column. */
+.rs-docs img {
+    max-width: 100%;
+    height: auto;
+}
