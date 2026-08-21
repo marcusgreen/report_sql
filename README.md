@@ -1,5 +1,9 @@
 # SQL Report
 
+[![Moodle Plugin CI](https://github.com/marcusgreen/report_sql/actions/workflows/ci.yml/badge.svg)](https://github.com/marcusgreen/report_sql/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/release/marcusgreen/report_sql.svg)](https://github.com/marcusgreen/report_sql/releases)
+[![Moodle Support](https://img.shields.io/badge/Moodle-%3E%3D%205.0-blue)](https://moodle.org/plugins/report_sql)
+
 *Reportbuilder ... the Sequel (Thanks to Adam Jenkins)*
 
 **SQL Report** lets you turn a SQL query into a fully configurable Moodle report — no programming required. Write your query, click **Publish**, and the plugin creates a Report Builder report your colleagues can run, filter, chart, schedule, and export.
