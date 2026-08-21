@@ -398,7 +398,7 @@ final class query_test extends \advanced_testcase {
         query::get($id)->publish();
         query::save($this->formdata(['id' => $id, 'querysql' => $sql, 'pagecoursecolumn' => 'courseid']));
 
-        // pagecourseid 0 (e.g. block off a course page) skips the filter: both courses present.
+        // Pagecourseid 0 (e.g. block off a course page) skips the filter: both courses present.
         $rows = query::get($id)->fetch_rows_for_viewer(0, 0);
         $ids  = array_map(static fn($r): int => (int) $r['courseid'], $rows);
         $this->assertContains((int) $a->id, $ids);

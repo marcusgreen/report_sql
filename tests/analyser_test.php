@@ -199,7 +199,7 @@ final class analyser_test extends \advanced_testcase {
      */
     public function test_sort_unindexed_column_suggests_index(): void {
         $this->resetAfterTest();
-        // {user}.description is a text column with no index; {user} has indexed columns (e.g. email).
+        // Column {user}.description has no index; {user} has indexed columns (e.g. email).
         $result = analyser::analyse('SELECT id, description FROM {user} ORDER BY description');
         $this->assertTrue($result['ok']);
         $joined = implode("\n", $result['indexinfo']);
@@ -212,7 +212,7 @@ final class analyser_test extends \advanced_testcase {
      */
     public function test_sort_indexed_column_no_suggestion(): void {
         $this->resetAfterTest();
-        // {user}.email is indexed, so sorting by it needs no advice.
+        // Column {user}.email is indexed, so sorting by it needs no advice.
         $result = analyser::analyse('SELECT id, email FROM {user} ORDER BY email');
         $this->assertTrue($result['ok']);
         $this->assertSame([], $result['indexinfo']);

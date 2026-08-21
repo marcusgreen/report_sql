@@ -308,7 +308,7 @@ class analyser {
     private static function index_report(string $validated, string $resolved, array &$warnings): array {
         $lines = [];
 
-        // {tablename} placeholders survive validation, so referenced tables are easy to recover.
+        // The {tablename} placeholders survive validation, so referenced tables are easy to recover.
         preg_match_all('/\{(\w+)\}/', $validated, $m);
         $tables = array_unique($m[1]);
 
@@ -385,7 +385,7 @@ class analyser {
                     $cols[strtolower((string) $lead)] = true;
                 }
             }
-            // get_indexes() excludes the primary key, but the PK is indexed too (e.g. "id").
+            // The get_indexes() call excludes the primary key, but the PK is indexed too (e.g. "id").
             foreach ($columns as $col) {
                 if (!empty($col->primary_key)) {
                     $cols[strtolower((string) $col->name)] = true;
@@ -509,7 +509,7 @@ class analyser {
             $ch = $rest[$i];
             if ($ch === '(') {
                 if (preg_match('/^\(\s*select\b/i', substr($rest, $i, 12))) {
-                    return true; // (SELECT ... in the select list.
+                    return true; // Matches a (SELECT ... in the select list.
                 }
             } else if ($ch === ')') {
                 // Unbalanced ) here means we left the select list into an outer scope — stop.

@@ -280,7 +280,7 @@ class edit_query_form extends moodleform {
                     $mform->setDefault('focusfilter', 0);
                 }
                 $mform->addElement('header', 'chartheader', get_string('chartsettings', 'report_sql'));
-                // "See the option below" is appended only for approvers — the checkbox it points to is
+                // The "See the option below" hint is appended only for approvers — the checkbox it points to is
                 // added just below, and only when they can publish.
                 $canpublish = !empty($this->_customdata['canpublish']);
                 $note = get_string('chartpublishrequired', 'report_sql')

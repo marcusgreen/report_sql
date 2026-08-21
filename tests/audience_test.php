@@ -190,7 +190,7 @@ final class audience_test extends \advanced_testcase {
         $report = \core_reportbuilder\local\models\report::get_record(['id' => $reportid]);
         $this->assertSame((int) \context_system::instance()->id, (int) $report->get('contextid'));
         $this->assertSame(0, \core_reportbuilder\local\models\audience::count_records(['reportid' => $reportid]));
-        // get_context() must no longer throw.
+        // The get_context() call must no longer throw.
         $this->assertInstanceOf(\core\context\system::class, $report->get_context());
 
         // Tear the query down so its backing VIEW is dropped before the DB reset — otherwise the

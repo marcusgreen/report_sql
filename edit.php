@@ -189,7 +189,7 @@ if ($mform->is_cancelled()) {
                 \core\output\notification::NOTIFY_ERROR
             );
         }
-        // "Save, publish & configure chart" / "…filters" reopens this form (now published, that
+        // The "Save, publish & configure chart" / "…filters" button reopens this form (now published, that
         // section unlocked) scrolled to and expanded at the relevant header, instead of returning to
         // the index. If both are ticked, expand both and anchor to the filter section (it sits first).
         if (!empty($data->focuschart) || !empty($data->focusfilter)) {

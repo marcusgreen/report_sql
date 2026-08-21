@@ -148,14 +148,14 @@ class queries extends system_report {
             $scopeparams[$paramcourse] = $courseid;
         }
 
-        // viewall — every query (course-scoped when a course is given).
+        // Viewall — every query (course-scoped when a course is given).
         if (has_capability('report/sql:viewall', $syscontext)) {
             return $courseid
                 ? ["({$alias}.courseid = :{$paramcourse} OR {$alias}.courseid = 0)", [$paramcourse => $courseid]]
                 : ['1 = 1', []];
         }
 
-        // author — own queries, plus any published+visible query.
+        // Author — own queries, plus any published+visible query.
         if (has_capability('report/sql:author', $syscontext)) {
             $where = "({$alias}.ownerid = :{$paramuser}"
                 . " OR ({$alias}.status = :{$parampub} AND {$alias}.visible = 1)){$scope}";

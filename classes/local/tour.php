@@ -47,6 +47,12 @@ class tour {
             return;
         }
 
+        // During a fresh site install plugins install in dependency order, so tool_usertours'
+        // tables may not exist yet when this hook runs. Bail out rather than hit a read error.
+        if (!$DB->get_manager()->table_exists('tool_usertours_tours')) {
+            return;
+        }
+
         // Idempotent: skip if a tour already targets the plugin's index page.
         if ($DB->record_exists('tool_usertours_tours', ['pathmatch' => self::PATHMATCH])) {
             return;

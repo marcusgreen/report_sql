@@ -475,6 +475,7 @@ class query {
      * @param string $xcol Label (x) column name.
      * @param string $ycol Value (y) column name.
      * @param string $xcase Optional %%CASE()%% mode for the x column (upper|lower|title|sentence).
+     * @param string|null $xdateformat Optional strftime format for a timestamp x column (epoch → date label).
      * @return array [labels, values]
      */
     public static function chart_series(

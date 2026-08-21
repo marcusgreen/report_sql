@@ -197,7 +197,7 @@ class customsql_import {
             }
         }
 
-        // customsql escape tokens for characters that cannot be typed literally in its editor:
+        // Customsql escape tokens for characters that cannot be typed literally in its editor:
         // %%Q%% -> ?, %%C%% -> :, %%S%% -> ;. These only appear inside string literals (e.g. URLs),
         // so substituting the literal character is faithful. The shared convert() pass then rebuilds
         // any literal ? as chr(63) so RS does not read it as a bound parameter.

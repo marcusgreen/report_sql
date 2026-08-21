@@ -132,7 +132,7 @@ class validator {
         if (preg_match_all('/##+|%%[^%\n]*%%/', self::strip_strings($sql), $ms)) {
             foreach ($ms[0] as $token) {
                 if (!self::is_supported_token($token)) {
-                    // %%USERID%% (and the USER_ID / USERIDS / USER_IDS spellings) is a common ask for a
+                    // Token %%USERID%% (and the USER_ID / USERIDS / USER_IDS spellings) is a common ask for a
                     // "current viewer" placeholder. The fixed view cannot carry a per-request user id, so
                     // steer authors to the "Restrict to viewing user" form field instead of the generic hint.
                     if (preg_match('/^%%\s*USER_?IDS?\s*%%$/i', $token)) {

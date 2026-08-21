@@ -1,4 +1,4 @@
-@local @report_sql
+@report @report_sql
 Feature: Publish and unpublish a report source
   In order to turn a saved SQL query into a live Report Builder report
   As a report author

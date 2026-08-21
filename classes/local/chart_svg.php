@@ -172,8 +172,8 @@ final class chart_svg {
             foreach ($labels as $label) {
                 $maxchars = max($maxchars, \core_text::strlen((string) $label));
             }
-            $labelpx = $maxchars * $labelsize * 0.6;    // ~0.6em per glyph at $labelsize px.
-            $needed  = (int) ceil($labelpx * 0.643) + 24; // sin(40°) ≈ 0.643, plus tick/pad.
+            $labelpx = $maxchars * $labelsize * 0.6;    // About 0.6em per glyph at $labelsize px.
+            $needed  = (int) ceil($labelpx * 0.643) + 24; // Sin(40°) ≈ 0.643, plus tick/pad.
             $bottom  = (int) min($height * 0.55, max($bottom, $needed));
         }
         $plotw  = $width - $left - $right;
@@ -311,8 +311,8 @@ final class chart_svg {
         // column width is content-aware (sized to the actual longest label) via the same helper
         // render() used to size the canvas, so the legend and the canvas always agree.
         $swatch  = max(10, (int) round($labelsize * 0.9));
-        $textoff = $swatch + 6;                           // swatch + gap before the text starts.
-        $charw   = $labelsize * 0.6;                      // ~0.6em per glyph.
+        $textoff = $swatch + 6;                           // Swatch + gap before the text starts.
+        $charw   = $labelsize * 0.6;                      // About 0.6em per glyph.
         $legendw = self::pie_legend_width($labels, $labelsize);
         $cx     = ($width - $legendw) / 2;
         $cy     = $top + ($height - $top - 10) / 2;
@@ -582,14 +582,14 @@ final class chart_svg {
      * @return int Legend column width in px.
      */
     private static function pie_legend_width(array $labels, int $labelsize): int {
-        $charw  = $labelsize * 0.6;                        // ~0.6em per glyph.
+        $charw  = $labelsize * 0.6;                        // About 0.6em per glyph.
         $swatch = max(10, (int) round($labelsize * 0.9));
-        $glyphs = 8;                                       // floor: swatch + a short "(n)" suffix.
+        $glyphs = 8;                                       // Floor: swatch + a short "(n)" suffix.
         foreach ($labels as $lab) {
-            // +6 glyphs of headroom for the " (value)" the legend appends to each label.
+            // Plus 6 glyphs of headroom for the " (value)" the legend appends to each label.
             $glyphs = max($glyphs, \core_text::strlen((string) $lab) + 6);
         }
-        $glyphs = min($glyphs, 28);                        // cap: longer labels truncate, not widen.
+        $glyphs = min($glyphs, 28);                        // Cap: longer labels truncate, not widen.
         $col = 8 + $swatch + 6 + (int) round($glyphs * $charw) + 8;
         return (int) max(140, min(520, $col));
     }

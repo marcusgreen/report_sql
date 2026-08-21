@@ -123,7 +123,7 @@ class adhoc_view extends base {
             if ($type === 'timestamp') {
                 $strftime = query::strftime_format((string) ($meta['dateformat'] ?? ''));
                 $column->set_callback(static function ($value, $row, $arg): string {
-                    // $fixday = false keeps the leading zero on %d (dd), so 'dd' really means 2 digits.
+                    // Passing $fixday = false keeps the leading zero on %d (dd), so 'dd' really means 2 digits.
                     return empty($value) ? '' : userdate((int) $value, $arg, 99, false);
                 }, $strftime);
             } else if (!empty($meta['textcase'])) {

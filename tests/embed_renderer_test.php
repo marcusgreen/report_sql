@@ -105,7 +105,7 @@ final class embed_renderer_test extends \advanced_testcase {
         $this->resetAfterTest();
         $this->setAdminUser();
 
-        // %%TIMESTAMP%% forces columnsmeta type=timestamp; the cell is a raw epoch rendered via userdate().
+        // Token %%TIMESTAMP%% forces columnsmeta type=timestamp; the cell is a raw epoch rendered via userdate().
         $query = $this->published('SELECT id, %%TIMESTAMP(timecreated, dd/mm/yyyy)%% AS created FROM {user}');
         $epoch = gmmktime(0, 0, 0, 6, 15, 2021); // 15/06/2021 UTC.
         $html = embed_renderer::render_table($query, [['id' => 1, 'created' => $epoch]]);
@@ -142,7 +142,7 @@ final class embed_renderer_test extends \advanced_testcase {
         $this->setAdminUser();
 
         $query = $this->published('SELECT id, firstname FROM {user}');
-        // chartmeta with no xcol/ycol → render_chart degrades to a table rather than emitting a broken image.
+        // Chartmeta with no xcol/ycol → render_chart degrades to a table rather than emitting a broken image.
         $html = embed_renderer::render_chart($query, [['id' => 1, 'firstname' => 'Ada']], ['type' => 'bar']);
 
         $this->assertStringContainsString('<table', $html);

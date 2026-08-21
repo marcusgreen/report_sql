@@ -61,7 +61,7 @@ $ADMIN->add('reports', new admin_externalpage(
 ));
 
 if ($hassiteconfig) {
-    // $settings is the admin_settingpage core pre-creates for this report plugin and, after this
+    // Here $settings is the admin_settingpage core pre-creates for this report plugin and, after this
     // file is included, adds under Site administration → Plugins → Report plugins → SQL Report.
     // Do NOT create our own or add it to the 'reports' category — that would make the config page
     // show as a Reports link instead of a plugin settings page.
