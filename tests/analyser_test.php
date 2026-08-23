@@ -162,6 +162,10 @@ final class analyser_test extends \advanced_testcase {
      * The MySQL-only UCASE()/LCASE() aliases map to the same upper/lower modes.
      */
     public function test_case_column_mysql_aliases(): void {
+        global $DB;
+        if ($DB->get_dbfamily() !== 'mysql') {
+            $this->markTestSkipped('UCASE()/LCASE() are MySQL-only; the live dry-run rejects them elsewhere.');
+        }
         $this->resetAfterTest();
         $result = analyser::analyse('SELECT UCASE(username) AS u, LCASE(username) AS l FROM {user}');
         $this->assertTrue($result['ok']);

@@ -129,16 +129,18 @@ final class customsql_import_test extends \advanced_testcase {
             . 'FROM prefix_user WHERE DATEDIFF(NOW(), FROM_UNIXTIME(lastlogin)) < 120';
         $r = customsql_import::convert($sql);
 
-        // The display column is always rewritten regardless of DB family.
-        $this->assertStringContainsString('%%TIMESTAMP(lastlogin)%% AS days', $r['sql']);
-        // The nested call is never turned into a token (exactly one token in the whole query).
-        $this->assertSame(1, substr_count($r['sql'], '%%TIMESTAMP'));
-        $this->assertStringContainsString('DATEDIFF(NOW(), FROM_UNIXTIME(lastlogin))', $r['sql']);
-
         if ($DB->get_dbfamily() === 'mysql') {
+            // DATEDIFF runs natively on MySQL, so convert() keeps the translated SQL (no fatal).
             $this->assertNull($r['fatal']);
+            // The display column is rewritten; the nested call stays native (exactly one token).
+            $this->assertStringContainsString('%%TIMESTAMP(lastlogin)%% AS days', $r['sql']);
+            $this->assertSame(1, substr_count($r['sql'], '%%TIMESTAMP'));
+            $this->assertStringContainsString('DATEDIFF(NOW(), FROM_UNIXTIME(lastlogin))', $r['sql']);
         } else {
+            // DATEDIFF has no portable equivalent, so the report is rejected and convert() returns
+            // the original SQL untouched — no token is substituted.
             $this->assertNotNull($r['fatal']);
+            $this->assertStringNotContainsString('%%TIMESTAMP', $r['sql']);
         }
     }
 

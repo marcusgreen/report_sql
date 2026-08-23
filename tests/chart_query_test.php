@@ -78,7 +78,7 @@ final class chart_query_test extends \advanced_testcase {
         global $DB;
         $prefix = $DB->get_prefix() . 'report_sql_v_';
         $views = $DB->get_records_sql(
-            "SELECT table_name FROM information_schema.views WHERE table_schema = DATABASE() AND table_name LIKE ?",
+            "SELECT table_name FROM information_schema.views WHERE table_name LIKE ?",
             [$prefix . '%']
         );
         foreach ($views as $view) {

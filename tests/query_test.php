@@ -54,7 +54,7 @@ final class query_test extends \advanced_testcase {
         global $DB;
         $prefix = $DB->get_prefix() . 'report_sql_v_';
         $views = $DB->get_records_sql(
-            "SELECT table_name FROM information_schema.views WHERE table_schema = DATABASE() AND table_name LIKE ?",
+            "SELECT table_name FROM information_schema.views WHERE table_name LIKE ?",
             [$prefix . '%']
         );
         foreach ($views as $view) {
@@ -109,8 +109,9 @@ final class query_test extends \advanced_testcase {
         $this->assertArrayHasKey('id', $meta);
         $this->assertSame('int', $meta['id']['type']);
 
-        // The view actually exists and is queryable.
-        $columns = $DB->get_columns($record->viewname);
+        // The view actually exists and exposes its columns. Use the plugin's own DB-portable
+        // introspection: core get_columns() returns nothing for a VIEW on PostgreSQL.
+        $columns = \report_sql\local\sql\view::columns($record->viewname);
         $this->assertArrayHasKey('id', $columns);
     }
 

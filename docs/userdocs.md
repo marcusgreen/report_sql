@@ -829,6 +829,8 @@ With thanks to **Gemma Lesterhuis — CEO, LTNC BV** for suggestions and feedbac
 
 With thanks to **Guy Thomas** for suggestions relating to test query.
 
+With thanks to **Zeid Fanous** for suggestions and feedback.
+
 ---
 
 *SQL Report — GNU GPL v3 or later.*

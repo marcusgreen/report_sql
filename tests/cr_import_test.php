@@ -152,7 +152,7 @@ final class cr_import_test extends \advanced_testcase {
      */
     public function test_convert_unknown_format_specifier_depends_on_dbfamily(): void {
         global $DB;
-        $r = cr_import::convert("SELECT FROM_UNIXTIME(t, '%W') FROM x");
+        $r = cr_import::convert("SELECT FROM_UNIXTIME(t, '%p') FROM x");
         if ($DB->get_dbfamily() === 'mysql') {
             $this->assertNull($r['fatal']);
         } else {
