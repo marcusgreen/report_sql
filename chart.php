@@ -24,6 +24,7 @@
 
 require(__DIR__ . '/../../config.php');
 
+use report_sql\local\chart_presenter;
 use report_sql\local\query;
 
 $id       = required_param('id', PARAM_INT);
@@ -113,7 +114,7 @@ if ($chartreportid > 0) {
     redirect(new moodle_url('/reportbuilder/view.php', ['id' => $chartreportid]));
 }
 
-[$labels, $values] = query::chart_series($rows, $xcol, $ycol, $q->column_textcase($xcol), $q->column_dateformat($xcol));
+[$labels, $values] = chart_presenter::chart_series($rows, $xcol, $ycol, $q->column_textcase($xcol), $q->column_dateformat($xcol));
 
 $chart = match ($type) {
     'line'            => new \core\chart_line(),

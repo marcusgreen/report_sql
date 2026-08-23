@@ -18,8 +18,8 @@ declare(strict_types=1);
 
 namespace report_sql;
 
+use report_sql\local\chart_presenter;
 use report_sql\local\chart_svg;
-use report_sql\local\query;
 
 /**
  * Unit tests for the server-side SVG chart builder and the shared chart_series extraction.
@@ -215,7 +215,7 @@ final class chart_svg_test extends \advanced_testcase {
             ['name' => 'Beta', 'total' => 7.5],
             ['name' => 123, 'total' => null],
         ];
-        [$labels, $values] = query::chart_series($rows, 'name', 'total');
+        [$labels, $values] = chart_presenter::chart_series($rows, 'name', 'total');
         $this->assertSame(['Alpha', 'Beta', '123'], $labels);
         $this->assertSame([3.0, 7.5, 0.0], $values);
     }
@@ -226,7 +226,7 @@ final class chart_svg_test extends \advanced_testcase {
      * @return void
      */
     public function test_chart_series_missing_columns(): void {
-        [$labels, $values] = query::chart_series([['a' => 1]], 'nolabel', 'novalue');
+        [$labels, $values] = chart_presenter::chart_series([['a' => 1]], 'nolabel', 'novalue');
         $this->assertSame([''], $labels);
         $this->assertSame([0.0], $values);
     }
@@ -239,10 +239,10 @@ final class chart_svg_test extends \advanced_testcase {
      */
     public function test_chart_series_applies_textcase(): void {
         $rows = [['city' => 'new york', 'n' => 1], ['city' => 'LONDON', 'n' => 2]];
-        [$labels] = query::chart_series($rows, 'city', 'n', 'title');
+        [$labels] = chart_presenter::chart_series($rows, 'city', 'n', 'title');
         $this->assertSame(['New York', 'London'], $labels);
         // Empty mode leaves labels untouched.
-        [$raw] = query::chart_series($rows, 'city', 'n', '');
+        [$raw] = chart_presenter::chart_series($rows, 'city', 'n', '');
         $this->assertSame(['new york', 'LONDON'], $raw);
     }
 
@@ -252,12 +252,12 @@ final class chart_svg_test extends \advanced_testcase {
      * @return void
      */
     public function test_format_textcase_modes(): void {
-        $this->assertSame('JOSÉ', query::format_textcase('josé', 'upper'));
-        $this->assertSame('josé', query::format_textcase('JOSÉ', 'lower'));
-        $this->assertSame('New York', query::format_textcase('new york', 'title'));
-        $this->assertSame('Hello world', query::format_textcase('hELLO wORLD', 'sentence'));
-        $this->assertSame('unchanged', query::format_textcase('unchanged', ''));
-        $this->assertSame('unchanged', query::format_textcase('unchanged', 'bogus'));
-        $this->assertSame('', query::format_textcase('', 'upper'));
+        $this->assertSame('JOSÉ', chart_presenter::format_textcase('josé', 'upper'));
+        $this->assertSame('josé', chart_presenter::format_textcase('JOSÉ', 'lower'));
+        $this->assertSame('New York', chart_presenter::format_textcase('new york', 'title'));
+        $this->assertSame('Hello world', chart_presenter::format_textcase('hELLO wORLD', 'sentence'));
+        $this->assertSame('unchanged', chart_presenter::format_textcase('unchanged', ''));
+        $this->assertSame('unchanged', chart_presenter::format_textcase('unchanged', 'bogus'));
+        $this->assertSame('', chart_presenter::format_textcase('', 'upper'));
     }
 }

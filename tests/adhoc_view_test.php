@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace report_sql;
 
-use report_sql\local\query;
+use report_sql\local\chart_presenter;
 
 /**
  * Tests for the neutral-to-strftime date-format mapper shared by the RB entity and the block.
@@ -26,17 +26,17 @@ use report_sql\local\query;
  * @package   report_sql
  * @copyright 2026 Marcus Green
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \report_sql\local\query::strftime_format
+ * @covers    \report_sql\local\chart_presenter::strftime_format
  */
 final class adhoc_view_test extends \advanced_testcase {
     /**
-     * Invoke the public static strftime_format() mapper (now the single source on query).
+     * Invoke the public static strftime_format() mapper (now the single source on chart_presenter).
      *
      * @param string $neutral
      * @return string
      */
     private function map(string $neutral): string {
-        return query::strftime_format($neutral);
+        return chart_presenter::strftime_format($neutral);
     }
 
     /**

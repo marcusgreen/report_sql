@@ -21,6 +21,7 @@ namespace report_sql\reportbuilder\local\entities;
 use core_reportbuilder\local\entities\base;
 use core_reportbuilder\local\report\column;
 use lang_string;
+use report_sql\local\chart_presenter;
 use report_sql\local\query;
 
 /**
@@ -129,13 +130,13 @@ class chart_view extends base {
 
         // Viewer-scoped fetch: same per-user / teacher-course row filtering as the data report.
         $rows = $q->fetch_rows_for_viewer($rowlimit);
-        [$labels, $values] = query::chart_series($rows, $xcol, $ycol, $q->column_textcase($xcol), $q->column_dateformat($xcol));
+        [$labels, $values] = chart_presenter::chart_series($rows, $xcol, $ycol, $q->column_textcase($xcol), $q->column_dateformat($xcol));
 
         $title = format_string($rec->name);
 
         // Delegate to the shared renderer so the chart report, the block, and any future surface all
-        // draw the chart identically (image + optional data table). See query::chart_figure_html().
-        return query::chart_figure_html($type, $labels, $values, $xcol, $ycol, [
+        // draw the chart identically (image + optional data table). See chart_presenter::chart_figure_html().
+        return chart_presenter::chart_figure_html($type, $labels, $values, $xcol, $ycol, [
             'labelsize'   => $labelsize,
             'datalabels'  => !empty($chartmeta['datalabels']),
             'multicolour' => !empty($chartmeta['multicolour']),

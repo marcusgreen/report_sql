@@ -311,9 +311,9 @@ function report_sql_preview_chart(array $args, string $viewname, array $meta): s
 
     $xcase = (string) ($meta[$xcol]['textcase'] ?? '');
     $xdateformat = (($meta[$xcol]['type'] ?? '') === 'timestamp')
-        ? \report_sql\local\query::strftime_format((string) ($meta[$xcol]['dateformat'] ?? ''))
+        ? \report_sql\local\chart_presenter::strftime_format((string) ($meta[$xcol]['dateformat'] ?? ''))
         : null;
-    [$labels, $values] = \report_sql\local\query::chart_series($rows, $xcol, $ycol, $xcase, $xdateformat);
+    [$labels, $values] = \report_sql\local\chart_presenter::chart_series($rows, $xcol, $ycol, $xcase, $xdateformat);
 
     $svg = \report_sql\local\chart_svg::render($type, $labels, $values, '', [
         'labelsize'   => $labelsize,

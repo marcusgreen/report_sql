@@ -20,6 +20,7 @@ namespace report_sql\output;
 
 use html_table;
 use html_writer;
+use report_sql\local\chart_presenter;
 use report_sql\local\query;
 
 /**
@@ -94,10 +95,10 @@ class embed_renderer {
                     // Raw epoch → formatted date, using the column's saved format (else the default).
                     $cells[] = ($v === null || $v === '')
                         ? ''
-                        : s(userdate((int) $v, query::strftime_format((string) ($m['dateformat'] ?? '')), 99, false));
+                        : s(userdate((int) $v, chart_presenter::strftime_format((string) ($m['dateformat'] ?? '')), 99, false));
                 } else if (!empty($m['textcase'])) {
                     // Display-only case transform on the raw text.
-                    $cells[] = s(query::format_textcase((string) $v, (string) $m['textcase']));
+                    $cells[] = s(chart_presenter::format_textcase((string) $v, (string) $m['textcase']));
                 } else {
                     // Cells may contain author-authored HTML (e.g. a CONCAT'd course link), exactly as
                     // the RB report renders it. format_text() keeps anchors but strips scripts. Filters
@@ -130,7 +131,7 @@ class embed_renderer {
         }
 
         // Apply the x-column's %%CASE%% transform to the labels, matching the data report and chart.php.
-        [$labels, $values] = query::chart_series($rows, $xcol, $ycol, $query->column_textcase($xcol), $query->column_dateformat($xcol));
+        [$labels, $values] = chart_presenter::chart_series($rows, $xcol, $ycol, $query->column_textcase($xcol), $query->column_dateformat($xcol));
         $type = (string) $chartmeta['type'];
 
         // Category/legend label font size, clamped to the same range as the edit form and RB chart report.
@@ -138,7 +139,7 @@ class embed_renderer {
 
         // Shared server-side SVG chart renderer: no JavaScript, no Chart.js; the <img> holds a base64
         // data URI and cannot execute script.
-        return query::chart_figure_html($type, $labels, $values, $xcol, $ycol, [
+        return chart_presenter::chart_figure_html($type, $labels, $values, $xcol, $ycol, [
             'labelsize'   => $labelsize,
             'datalabels'  => !empty($chartmeta['datalabels']),
             'multicolour' => !empty($chartmeta['multicolour']),
