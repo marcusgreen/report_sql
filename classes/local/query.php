@@ -19,12 +19,7 @@ declare(strict_types=1);
 namespace report_sql\local;
 
 use core_reportbuilder\local\models\report as report_model;
-use core_reportbuilder\local\models\audience as audience_model;
 use core_reportbuilder\local\helpers\report as reporthelper;
-use core_reportbuilder\reportbuilder\audience\allusers;
-use core_cohort\reportbuilder\audience\cohortmember;
-use report_sql\reportbuilder\audience\courseparticipant;
-use report_sql\reportbuilder\audience\courserole;
 use report_sql\local\sql\validator;
 use report_sql\local\sql\view;
 
@@ -574,7 +569,7 @@ class query {
             'querysql'     => $sql,
             'courseid'     => (int) ($data->courseid ?? 0),
             'visible'      => isset($data->visible) ? (int) (bool) $data->visible : 1,
-            'audiencemeta' => self::build_audiencemeta($data),
+            'audiencemeta' => report_visibility::build_audiencemeta($data),
             'timemodified' => $now,
         ];
 
@@ -652,7 +647,7 @@ class query {
             $DB->update_record(self::TABLE, $record);
             // Audience/visibility edits on an already-published report take effect immediately.
             if ($existing->status === self::STATUS_PUBLISHED && !empty($existing->reportid)) {
-                self::get($record->id)->apply_report_visibility((int) $existing->reportid);
+                report_visibility::apply(self::get_record($record->id), (int) $existing->reportid);
             }
             \report_sql\event\query_updated::create_and_trigger($record->id, $record->name);
             return $record->id;
@@ -723,7 +718,7 @@ class query {
             $datasource->add_default_conditions();
         }
 
-        $this->apply_report_visibility($reportid);
+        report_visibility::apply($this->record, $reportid);
 
         $this->record = $DB->get_record(self::TABLE, ['id' => $this->id()], '*', MUST_EXIST);
 
@@ -738,225 +733,6 @@ class query {
         }
 
         \report_sql\event\query_published::create_and_trigger($this->id(), $this->name());
-    }
-
-    /**
-     * Limit who can open the RB report by setting core Report Builder's context + audience.
-     *
-     * These are the two levers of {@see \core_reportbuilder\permission::can_view_report()}:
-     *
-     * - Context: course-scoped queries (courseid > 0) place their report in that course context, so
-     *   the moodle/reportbuilder:view capability is evaluated there rather than site-wide.
-     * - Audience: taken from the query's audiencemeta picker. When that is empty (DEFAULT) the
-     *   audience is derived automatically — a hidden query (visible = 0) gets none (owner +
-     *   reportbuilder:viewall only); a course-scoped query gets {@see courseparticipant}; a visible
-     *   site-wide query gets {@see allusers}.
-     *
-     * Idempotent: existing audiences are cleared first so re-publishing, toggling visibility or
-     * changing the picker does not accumulate duplicates. These reports are created solely by this
-     * plugin, so wiping their audiences is safe.
-     *
-     * @param int $reportid
-     */
-    public function apply_report_visibility(int $reportid): void {
-        $courseid = (int) ($this->record->courseid ?? 0);
-        $visible  = (int) ($this->record->visible ?? 1);
-
-        // Context follows course scope. A courseid pointing at a course that no longer exists (e.g.
-        // course deleted after scoping, or a stale id carried in from an older import) degrades to
-        // site-wide rather than fatalling on context_course::instance().
-        $context = \context_system::instance();
-        if ($courseid > 0) {
-            $coursecontext = \context_course::instance($courseid, IGNORE_MISSING);
-            if ($coursecontext) {
-                $context = $coursecontext;
-            } else {
-                $courseid = 0;
-            }
-        }
-        $reportpersistent = report_model::get_record(['id' => $reportid], MUST_EXIST);
-        if ((int) $reportpersistent->get('contextid') !== (int) $context->id) {
-            $reportpersistent->set('contextid', $context->id);
-            $reportpersistent->save();
-        }
-
-        // Reset any audiences this plugin previously attached to the report.
-        foreach (audience_model::get_records(['reportid' => $reportid]) as $audience) {
-            $audience->delete();
-        }
-
-        $meta = $this->record->audiencemeta ? json_decode($this->record->audiencemeta, true) : null;
-        $type = is_array($meta) ? ($meta['type'] ?? self::AUDIENCE_DEFAULT) : self::AUDIENCE_DEFAULT;
-
-        // Automatic: derive from scope + visibility.
-        if ($type === self::AUDIENCE_DEFAULT) {
-            if (!$visible) {
-                return;
-            }
-            if ($courseid > 0) {
-                // Course-scoped reports default to course staff (teacher / non-editing teacher /
-                // manager) rather than every enrolled user, so students do not see them unless the
-                // author explicitly chooses "Course participants". Fall back to participants only if
-                // the site somehow has no staff roles defined.
-                $roles = self::staff_role_ids();
-                if ($roles) {
-                    courserole::create($reportid, ['courseid' => $courseid, 'roles' => $roles]);
-                } else {
-                    courseparticipant::create($reportid, ['courseid' => $courseid]);
-                }
-            } else {
-                allusers::create($reportid, []);
-            }
-            return;
-        }
-
-        // Explicit picker choice.
-        switch ($type) {
-            case self::AUDIENCE_ALLUSERS:
-                allusers::create($reportid, []);
-                break;
-            case self::AUDIENCE_COURSEPARTICIPANT:
-                if ($courseid > 0) {
-                    courseparticipant::create($reportid, ['courseid' => $courseid]);
-                }
-                break;
-            case self::AUDIENCE_COURSEROLE:
-                $roles = array_values(array_filter(array_map('intval', (array) ($meta['roles'] ?? []))));
-                if ($courseid > 0 && $roles) {
-                    courserole::create($reportid, ['courseid' => $courseid, 'roles' => $roles]);
-                }
-                break;
-            case self::AUDIENCE_COHORT:
-                $cohorts = array_values(array_filter(array_map('intval', (array) ($meta['cohorts'] ?? []))));
-                if ($cohorts) {
-                    cohortmember::create($reportid, ['cohorts' => $cohorts]);
-                }
-                break;
-            case self::AUDIENCE_NONE:
-            default:
-                // No audience: owner + reportbuilder:viewall only.
-                break;
-        }
-    }
-
-    /**
-     * Detach every query scoped to a course that has just been deleted.
-     *
-     * Called from the {@see \core\event\course_deleted} observer. When a course is deleted its
-     * context row goes with it, leaving any report we placed in that course context with a dangling
-     * contextid that fatals {@see report_model::get_context()} (and, before that, our course-scoped
-     * audiences calling context_course::instance()). For each affected query this:
-     *
-     * - degrades the query to site-wide scope (courseid = 0) so the plugin UI is consistent;
-     * - re-points its published report to the system context, curing the dangling contextid;
-     * - clears the report's plugin audiences. The course-scoped audience can never match again, and
-     *   silently re-deriving a site-wide audience would *widen* who can open the report (a privilege
-     *   escalation), so we degrade to owner + reportbuilder:viewall only and force the picker to NONE.
-     *
-     * @param int $courseid Id of the deleted course.
-     */
-    public static function on_course_deleted(int $courseid): void {
-        global $DB;
-
-        if ($courseid <= 0) {
-            return;
-        }
-
-        $records = $DB->get_records(self::TABLE, ['courseid' => $courseid]);
-        if (!$records) {
-            return;
-        }
-
-        $syscontext = \context_system::instance();
-        foreach ($records as $rec) {
-            $DB->update_record(self::TABLE, (object) [
-                'id'           => $rec->id,
-                'courseid'     => 0,
-                'audiencemeta' => json_encode(['type' => self::AUDIENCE_NONE]),
-                'timemodified' => time(),
-            ]);
-
-            if ($rec->status !== self::STATUS_PUBLISHED) {
-                continue;
-            }
-            // A query may own several reports (see create_additional_report); every one of them was
-            // placed in the now-deleted course context, so detach them all, not just $rec->reportid.
-            foreach (self::bound_report_ids((int) $rec->id) as $rid) {
-                $report = report_model::get_record(['id' => $rid]);
-                if (!$report) {
-                    continue;
-                }
-                if ((int) $report->get('contextid') !== (int) $syscontext->id) {
-                    $report->set('contextid', $syscontext->id);
-                    $report->save();
-                }
-                foreach (audience_model::get_records(['reportid' => $rid]) as $audience) {
-                    $audience->delete();
-                }
-            }
-        }
-    }
-
-    /**
-     * Role ids considered "course staff" — those with a teaching or management archetype.
-     *
-     * Used for the automatic course-scoped audience so students are excluded by default.
-     *
-     * @return int[]
-     */
-    private static function staff_role_ids(): array {
-        $roleids = [];
-        foreach (['editingteacher', 'teacher', 'manager'] as $archetype) {
-            foreach (get_archetype_roles($archetype) as $role) {
-                $roleids[(int) $role->id] = (int) $role->id;
-            }
-        }
-        return array_values($roleids);
-    }
-
-    /**
-     * Build the audiencemeta JSON blob from submitted form data.
-     *
-     * @param \stdClass $data Form data (audiencetype, audienceroles, audiencecohorts).
-     * @return string|null JSON string, or null for the automatic default.
-     */
-    private static function build_audiencemeta(\stdClass $data): ?string {
-        $type = (string) ($data->audiencetype ?? self::AUDIENCE_DEFAULT);
-        switch ($type) {
-            case self::AUDIENCE_ALLUSERS:
-                return json_encode(['type' => self::AUDIENCE_ALLUSERS]);
-            case self::AUDIENCE_COURSEPARTICIPANT:
-                return json_encode(['type' => self::AUDIENCE_COURSEPARTICIPANT]);
-            case self::AUDIENCE_COURSEROLE:
-                return json_encode([
-                    'type'  => self::AUDIENCE_COURSEROLE,
-                    'roles' => array_values(array_map('intval', (array) ($data->audienceroles ?? []))),
-                ]);
-            case self::AUDIENCE_COHORT:
-                return json_encode([
-                    'type'    => self::AUDIENCE_COHORT,
-                    'cohorts' => array_values(array_map('intval', (array) ($data->audiencecohorts ?? []))),
-                ]);
-            case self::AUDIENCE_NONE:
-                return json_encode(['type' => self::AUDIENCE_NONE]);
-            default:
-                return null;
-        }
-    }
-
-    /**
-     * Expand a stored audiencemeta blob into flat form field values for set_data().
-     *
-     * @param string|null $json Stored audiencemeta JSON.
-     * @return array{audiencetype:string,audienceroles:int[],audiencecohorts:int[]}
-     */
-    public static function explode_audiencemeta(?string $json): array {
-        $meta = $json ? json_decode($json, true) : null;
-        return [
-            'audiencetype'    => is_array($meta) ? ($meta['type'] ?? self::AUDIENCE_DEFAULT) : self::AUDIENCE_DEFAULT,
-            'audienceroles'   => array_map('intval', (array) ($meta['roles'] ?? [])),
-            'audiencecohorts' => array_map('intval', (array) ($meta['cohorts'] ?? [])),
-        ];
     }
 
     /**
@@ -1003,7 +779,7 @@ class query {
 
         set_config('queryid_for_report_' . $reportid, $this->id(), 'report_sql');
 
-        $this->apply_report_visibility($reportid);
+        report_visibility::apply($this->record, $reportid);
 
         return $reportid;
     }
@@ -1044,7 +820,7 @@ class query {
         }
 
         $this->store_chart_report_id($reportid);
-        $this->apply_report_visibility($reportid);
+        report_visibility::apply($this->record, $reportid);
 
         return $reportid;
     }
@@ -1218,12 +994,13 @@ class query {
      *
      * A query owns one report per {@see query::create_additional_report()} call; each binding lives
      * only in {config_plugins} as queryid_for_report_<rid>, so this lookup — not the query record's
-     * single reportid field — is the authoritative list of bound reports.
+     * single reportid field — is the authoritative list of bound reports. Public so
+     * {@see report_visibility::on_course_deleted()} can sweep every bound report of a deleted course.
      *
      * @param int $queryid
      * @return int[] Report ids.
      */
-    private static function bound_report_ids(int $queryid): array {
+    public static function bound_report_ids(int $queryid): array {
         global $DB;
 
         $rows = $DB->get_records_sql(

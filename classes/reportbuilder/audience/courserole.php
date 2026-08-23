@@ -29,7 +29,7 @@ use MoodleQuickForm;
  *
  * A role assignment counts when it is made AT the course context or at any ancestor context (so a
  * manager assigned at category or site level still matches, mirroring how Moodle role inheritance
- * works). Generated programmatically by {@see \report_sql\local\query::apply_report_visibility()}
+ * works). Generated programmatically by {@see \report_sql\local\report_visibility::apply()}
  * and never offered in the Report Builder audience UI.
  *
  * configdata: ['courseid' => int, 'roles' => int[]].

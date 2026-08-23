@@ -27,6 +27,7 @@ require(__DIR__ . '/../../config.php');
 use report_sql\form\edit_query_form;
 use report_sql\local\query;
 use report_sql\local\query_naming;
+use report_sql\local\report_visibility;
 use report_sql\local\sql\validator;
 use report_sql\local\sql\view;
 
@@ -88,7 +89,7 @@ if ($existing) {
     // Display SQL without {} table braces; auto_brace() re-adds them on save.
     $existing->querysql = validator::strip_braces((string) $existing->querysql);
     // Expand the stored audience choice into the flat form fields.
-    foreach (query::explode_audiencemeta($existing->audiencemeta ?? null) as $key => $value) {
+    foreach (report_visibility::explode_audiencemeta($existing->audiencemeta ?? null) as $key => $value) {
         $existing->$key = $value;
     }
     $formdefaults = $existing;

@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace report_sql;
 
 use report_sql\local\query;
+use report_sql\local\report_visibility;
 
 /**
  * Tests for the audience picker storage contract (audiencemeta build / explode / persistence).
@@ -27,6 +28,7 @@ use report_sql\local\query;
  * @copyright 2026 Marcus Green
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers    \report_sql\local\query
+ * @covers    \report_sql\local\report_visibility
  */
 final class audience_test extends \advanced_testcase {
     /**
@@ -96,7 +98,7 @@ final class audience_test extends \advanced_testcase {
     public function test_explode_roundtrips_courserole(): void {
         $json = json_encode(['type' => 'courserole', 'roles' => [3, 5]]);
 
-        $flat = query::explode_audiencemeta($json);
+        $flat = report_visibility::explode_audiencemeta($json);
 
         $this->assertSame('courserole', $flat['audiencetype']);
         $this->assertSame([3, 5], $flat['audienceroles']);
@@ -104,7 +106,7 @@ final class audience_test extends \advanced_testcase {
     }
 
     public function test_explode_null_is_default(): void {
-        $flat = query::explode_audiencemeta(null);
+        $flat = report_visibility::explode_audiencemeta(null);
 
         $this->assertSame('default', $flat['audiencetype']);
         $this->assertSame([], $flat['audienceroles']);

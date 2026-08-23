@@ -21,6 +21,7 @@ namespace report_sql;
 use core\event\course_deleted;
 use core_reportbuilder\event\report_viewed;
 use report_sql\local\query;
+use report_sql\local\report_visibility;
 
 /**
  * Event observers for report_sql.
@@ -39,7 +40,7 @@ class observer {
      * @param course_deleted $event
      */
     public static function course_deleted(course_deleted $event): void {
-        query::on_course_deleted((int) $event->objectid);
+        report_visibility::on_course_deleted((int) $event->objectid);
     }
 
     /**
