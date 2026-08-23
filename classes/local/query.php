@@ -784,6 +784,7 @@ class query {
                 // Old column names no longer apply once the view is rebuilt.
                 $record->useridcolumn = null;
                 $record->coursecolumn = null;
+                $record->pagecoursecolumn = null;
                 $DB->update_record(self::TABLE, $record);
                 self::tear_down((int) $existing->id, $existing);
                 \report_sql\event\query_updated::create_and_trigger($record->id, $record->name);
