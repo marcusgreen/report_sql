@@ -82,6 +82,14 @@ if ($hassiteconfig) {
         PARAM_TEXT
     ));
 
+    $settings->add(new admin_setting_configtextarea(
+        'report_sql/denytables',
+        get_string('settings:denytables', 'report_sql'),
+        get_string('settings:denytables_desc', 'report_sql'),
+        \report_sql\local\sql\validator::default_denytables(),
+        PARAM_TEXT
+    ));
+
     $settings->add(new admin_setting_configcheckbox(
         'report_sql/syntaxhighlight',
         get_string('settings:syntaxhighlight', 'report_sql'),

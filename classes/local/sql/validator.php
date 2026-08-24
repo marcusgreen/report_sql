@@ -61,7 +61,11 @@ class validator {
         'ATTACH', 'DETACH', 'PRAGMA',
     ];
 
-    /** @var string[] Moodle tables that must never be exposed. */
+    /**
+     * @var string[] Built-in baseline of Moodle tables that must never be exposed.
+     * Seeds the default of the admin-editable 'denytables' setting; {@see denied_tables()}
+     * reads the setting at runtime so an admin's edits (including removals) take effect.
+     */
     private const DENY_TABLES = [
         // Core configuration.
         'config', 'config_plugins', 'config_log',
@@ -174,7 +178,7 @@ class validator {
         // Table denylist (Moodle {tablename} syntax).
         if (preg_match_all('/\{([a-z0-9_]+)\}/i', $stripped, $matches)) {
             foreach ($matches[1] as $table) {
-                if (in_array(strtolower($table), self::DENY_TABLES, true)) {
+                if (in_array(strtolower($table), self::denied_tables(), true)) {
                     throw new \moodle_exception('errdeniedtable', 'report_sql', '', $table);
                 }
             }
@@ -649,6 +653,34 @@ class validator {
             return [];
         }
         $items = preg_split('/[\s,]+/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        return array_map('strtolower', $items);
+    }
+
+    /**
+     * The built-in table denylist as a comma-separated string, used to seed the default
+     * value of the 'denytables' admin setting (see settings.php).
+     *
+     * @return string
+     */
+    public static function default_denytables(): string {
+        return implode(',', self::DENY_TABLES);
+    }
+
+    /**
+     * Lowercased denylist of tables to reject. Admin-editable via the 'denytables' setting,
+     * which is seeded from {@see DENY_TABLES}. The setting is the single source of truth: an
+     * admin may add, remove or clear entries. Only when the setting has never been saved
+     * (config unset) does the built-in baseline apply.
+     *
+     * @return string[]
+     */
+    private static function denied_tables(): array {
+        $raw = get_config('report_sql', 'denytables');
+        if ($raw === false) {
+            // Setting never saved — fall back to the built-in baseline.
+            return self::DENY_TABLES;
+        }
+        $items = preg_split('/[\s,]+/', (string) $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
         return array_map('strtolower', $items);
     }
 }

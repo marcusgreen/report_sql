@@ -166,6 +166,36 @@ final class sql_validator_test extends \advanced_testcase {
         $this->assertNotEmpty(validator::validate("SELECT id, 'password' AS label FROM {user}"));
     }
 
+    public function test_denytable_setting_adds_custom_table(): void {
+        $this->resetAfterTest();
+        // A table not in the built-in baseline is rejected once the admin adds it to 'denytables'.
+        set_config('denytables', validator::default_denytables() . ',my_secret_table', 'report_sql');
+
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('errdeniedtable', 'report_sql', 'my_secret_table'));
+        validator::validate('SELECT id FROM {my_secret_table}');
+    }
+
+    public function test_denytable_setting_can_remove_baseline_entry(): void {
+        $this->resetAfterTest();
+        // The setting is the single source of truth: dropping a baseline entry re-exposes that table.
+        // Seed it with everything except 'config'.
+        $tables = array_diff(explode(',', validator::default_denytables()), ['config']);
+        set_config('denytables', implode(',', $tables), 'report_sql');
+
+        $this->assertNotEmpty(validator::validate('SELECT id FROM {config}'));
+    }
+
+    public function test_denytable_baseline_applies_when_setting_unset(): void {
+        $this->resetAfterTest();
+        // With no 'denytables' saved, the built-in baseline still blocks a protected table.
+        set_config('denytables', null, 'report_sql');
+
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('errdeniedtable', 'report_sql', 'sessions'));
+        validator::validate('SELECT id FROM {sessions}');
+    }
+
     public function test_mixed_case_quoted_alias_no_longer_warns(): void {
         $sql = 'SELECT ue.userid, c.shortname AS "Course_Shortname" '
             . 'FROM {user_enrolments} ue JOIN {enrol} e ON ue.enrolid = e.id '
