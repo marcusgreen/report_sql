@@ -256,7 +256,7 @@ class queries extends system_report {
                 $marker = '';
                 if ($row->status === query::STATUS_PUBLISHED && !empty($row->reportid)) {
                     $marker = html_writer::span(
-                        s('[[reportsource:' . (int) $row->reportid . ']]'),
+                        s('[[sqlreport:' . (int) $row->reportid . ']]'),
                         'sr-only',
                         ['id' => 'rs-embed-marker-' . (int) $row->id]
                     );
@@ -348,7 +348,7 @@ class queries extends system_report {
 
         // Publish is an inline button (see add_buttons_column()), paired with Unpublish.
 
-        // Copy the [[reportsource:ID]] embed marker to the clipboard. No visible marker text clutters
+        // Copy the [[sqlreport:ID]] embed marker to the clipboard. No visible marker text clutters
         // the listing (the old dedicated column is gone); the marker lives once per row as an sr-only
         // node emitted by add_buttons_column(), and this action's data-clipboard-target points at it.
         // The target selector must be built by the callback: RB's attribute placeholder replacement
