@@ -318,7 +318,7 @@ const appendList = (container, lines, cls) => {
  */
 const alertBox = (cls, text) => {
     const div = document.createElement('div');
-    div.className = 'alert ' + cls + ' mb-1 py-1';
+    div.className = 'alert ' + cls + ' mb-1 py-1 report_sql-pre-wrap';
     div.setAttribute('role', 'alert');
     div.textContent = text;
     return div;

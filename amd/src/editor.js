@@ -206,12 +206,12 @@ const buildEditor = (textarea, schema, fkMap) => {
     };
 
     const errorBanner = document.createElement('div');
-    errorBanner.className = 'alert alert-danger mt-1';
+    errorBanner.className = 'alert alert-danger mt-1 report_sql-pre-wrap';
     errorBanner.style.display = 'none';
     container.after(errorBanner);
 
     const warningBanner = document.createElement('div');
-    warningBanner.className = 'alert alert-warning mt-1';
+    warningBanner.className = 'alert alert-warning mt-1 report_sql-pre-wrap';
     warningBanner.style.display = 'none';
     errorBanner.after(warningBanner);
 
@@ -267,7 +267,7 @@ const buildEditor = (textarea, schema, fkMap) => {
             errorBanner.style.display = 'none';
         } catch (e) {
             // Parse failure (incomplete SQL etc.) — leave the text untouched.
-            errorBanner.className = 'alert alert-danger mt-1';
+            errorBanner.className = 'alert alert-danger mt-1 report_sql-pre-wrap';
             errorBanner.textContent = 'Could not format SQL: ' + e.message;
             errorBanner.style.display = '';
         }
@@ -365,7 +365,7 @@ const buildEditor = (textarea, schema, fkMap) => {
  *     line numbers, which refer to the compiled text and not the author's source, can be lined up.
      */
     function showError(msg, sql, compiled) {
-        errorBanner.className = 'alert alert-danger mt-1';
+        errorBanner.className = 'alert alert-danger mt-1 report_sql-pre-wrap';
         errorBanner.textContent = msg;
         const addFixLink = (label, rewrite) => {
             errorBanner.appendChild(document.createElement('br'));

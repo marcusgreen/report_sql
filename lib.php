@@ -156,7 +156,8 @@ function report_sql_output_fragment_preview(array $args): string {
         $validated = \report_sql\local\sql\validator::validate($sql);
     } catch (\moodle_exception $e) {
         // Validation failed before any view was created — nothing to clean up.
-        return $OUTPUT->notification($e->getMessage(), 'error');
+        // Wrap so the alert preserves the SQL's linebreaks/indentation (see .report_sql-pre-wrap).
+        return \html_writer::div($OUTPUT->notification($e->getMessage(), 'error'), 'report_sql-pre-wrap');
     }
 
     // Preview is first-page-only, so output() renders the rows synchronously and the throwaway view
@@ -169,7 +170,10 @@ function report_sql_output_fragment_preview(array $args): string {
         // An unaliased expression yields a view column RB cannot build — fail with a clear message.
         if (($badcol = \report_sql\local\sql\view::first_unaliased_column($columns)) !== null) {
             $errkey = preg_match('/\s/', $badcol) ? 'erraliasspaces' : 'errcolumnnoalias';
-            return $OUTPUT->notification(get_string($errkey, 'report_sql', $badcol), 'error');
+            return \html_writer::div(
+                $OUTPUT->notification(get_string($errkey, 'report_sql', $badcol), 'error'),
+                'report_sql-pre-wrap'
+            );
         }
 
         $meta = \report_sql\local\query::build_columnsmeta($columns, $validated);
@@ -222,7 +226,8 @@ function report_sql_output_fragment_preview(array $args): string {
         // The view build failed: show the compiled SQL (placeholders/{table} resolved) beside the
         // error so the author can line the DB error's line numbers up against what actually ran.
         $compiled = \report_sql\local\sql\view::compile($validated, $courseid);
-        return $OUTPUT->notification($e->getMessage(), 'error') . report_sql_compiled_sql_details($compiled);
+        return \html_writer::div($OUTPUT->notification($e->getMessage(), 'error'), 'report_sql-pre-wrap')
+            . report_sql_compiled_sql_details($compiled);
     } finally {
         \report_sql\local\sql\view::drop_preview($USER->id);
     }

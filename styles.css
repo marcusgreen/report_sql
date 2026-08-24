@@ -53,3 +53,13 @@
     max-width: 100%;
     height: auto;
 }
+
+/* Error / warning alerts echo the author's SQL from the DB error. Preserve its linebreaks and
+   indentation (Bootstrap .alert collapses whitespace by default) so the offending query stays
+   readable instead of squashing onto one line; word-break keeps a long single line from
+   overflowing horizontally. */
+.report_sql-pre-wrap,
+.report_sql-pre-wrap .alert {
+    white-space: pre-wrap;
+    word-break: break-word;
+}

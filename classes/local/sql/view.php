@@ -117,7 +117,11 @@ class view {
 
         try {
             $DB->change_database_structure($ddl);
-        } catch (\dml_exception $e) {
+        } catch (\dml_exception | \ddl_change_structure_exception $e) {
+            // A failed CREATE VIEW throws ddl_change_structure_exception (a moodle_exception, not a
+            // dml_exception); its ->error is the bare DB message while ->sql carries the raw DDL. Use
+            // ->error so the leaked CREATE ... VIEW statement and mdl_ prefix never reach the author —
+            // the compiled SQL is surfaced separately by report_sql_compiled_sql_details().
             $detail = validator::clean_error($e->error ?: ($e->debuginfo ?: $e->getMessage()));
             if (stripos($detail, 'Duplicate column name') !== false) {
                 throw new \moodle_exception(
