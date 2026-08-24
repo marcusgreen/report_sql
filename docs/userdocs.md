@@ -620,30 +620,30 @@ A published report can be **emailed automatically** on a recurring basis — dai
 
 Besides opening the full report viewer, a published report can be surfaced **inline** on a page by two optional companion plugins. Both render the report through the **same per-viewer access path** as the report viewer — each person sees only the rows they are allowed to (their own rows under a [per-user filter](#per-user-filter), and nothing at all without access) — and both need the report's own **audience/context** to permit the viewer, exactly like [Who can view the report](#who-can-view-the-report-audiences).
 
-### The block — `block_reportsources`
+### The block — `block_sqlreports`
 
 A Moodle block that pins **one** published report — as a table or chart — on a course page, the site front page, or the user Dashboard.
 
-1. Install `block_reportsources` (it depends on `report_sql`, so install this plugin first).
+1. Install `block_sqlreports` (it depends on `report_sql`, so install this plugin first).
 2. Turn editing on, **Add a block → Report sources**.
 3. In the block's config, pick a **published** report (only published views are listed) and a **display mode**: *Auto* (chart if the report has a chart configured, else table), *Table*, or *Chart*.
 
 One shared block instance shows each viewer only their own rows, so the same block on a course page can show every teacher just their own courses. In chart mode a narrow block adds an **Expand** button that opens the chart in a large modal. The block footer links to the full report; a viewer with no access sees an empty block that hides itself.
 
-### The filter — `filter_reportsources`
+### The filter — `filter_sqlreports`
 
 A text filter that embeds a report inline in **any** Moodle text — a label, Page, Book chapter, forum post, or course summary — with a Configurable-Reports-style marker:
 
 ```
-[[reportsource:5]]           the report (table, or chart if one is configured)
-[[reportsource:5 chart]]     force the chart
-[[reportsource:5 table]]     force the table
+[[sqlreport:5]]           the report (table, or chart if one is configured)
+[[sqlreport:5 chart]]     force the chart
+[[sqlreport:5 table]]     force the table
 ```
 
 `5` is the **Report Builder report id** — the `id` in the report's `/reportbuilder/view.php?id=5` URL (the value shown when you **Open report** or **Edit in Report Builder**).
 
-1. Install `filter_reportsources`, then enable it at **Site admin → Plugins → Filters → Manage filters**.
-2. Type the `[[reportsource:ID]]` marker into any content that runs through filters.
+1. Install `filter_sqlreports`, then enable it at **Site admin → Plugins → Filters → Manage filters**.
+2. Type the `[[sqlreport:ID]]` marker into any content that runs through filters.
 
 The filter is safe with Moodle's HTML caching: it emits only an inert placeholder into the cached text and fetches the real, per-viewer rows **live on each request** (via the `report_sql_get_embed` web service), so one viewer's rows are never cached and shown to another. Embedding a report you cannot see shows **you** nothing; an unknown id and no-access both render empty.
 
@@ -793,15 +793,15 @@ Replace `moodle`, `mdluser`, and `localhost` with your schema name, DB user, and
 
 ## How this compares to other SQL report plugins
 
-Two long-standing plugins build reports from SQL: **Ad-hoc database queries** (`report_customsql`) and **Configurable reports** (`block_configurable_reports`). SQL Report takes a different route — it turns your SQL into a native **Report Builder** data source and lets core handle columns, filters, charts, scheduling and access. Two companion plugins then display a published report where you want it: **`block_reportsources`** pins one onto course, Dashboard or front-page regions, and **`filter_reportsources`** embeds one inline in any text with a `[[reportsource:id]]` marker (see [Showing a report on a page](#showing-a-report-on-a-page-block-and-filter)).
+Two long-standing plugins build reports from SQL: **Ad-hoc database queries** (`report_customsql`) and **Configurable reports** (`block_configurable_reports`). SQL Report takes a different route — it turns your SQL into a native **Report Builder** data source and lets core handle columns, filters, charts, scheduling and access. Two companion plugins then display a published report where you want it: **`block_sqlreports`** pins one onto course, Dashboard or front-page regions, and **`filter_sqlreports`** embeds one inline in any text with a `[[sqlreport:id]]` marker (see [Showing a report on a page](#showing-a-report-on-a-page-block-and-filter)).
 
-| | **SQL Report** (`report_sql` + `block_reportsources`) | **Ad-hoc database queries** (`report_customsql`) | **Configurable reports** (`block_configurable_reports`) |
+| | **SQL Report** (`report_sql` + `block_sqlreports`) | **Ad-hoc database queries** (`report_customsql`) | **Configurable reports** (`block_configurable_reports`) |
 |---|---|---|---|
 | Report engine | Core **Report Builder** (your SQL becomes a data source) | Own renderer (HTML table + CSV) | Own renderer (table / chart types) |
 | Interactive columns, filters, sort | Yes — native Report Builder UI | No — fixed by the SQL | Limited, per report type |
 | Charts | Yes — Report Builder charts (block adds an expandable modal chart) | No (CSV download only) | Basic built-in charts |
 | Scheduled / emailed exports | Yes — Report Builder schedules | Yes — its core strength | Limited |
-| Embeddable on a page | Yes — **`block_reportsources`** pins one report on course / Dashboard / front page, and **`filter_reportsources`** embeds one inline in any text via `[[reportsource:id]]` | No (separate report page) | Yes — it *is* a block |
+| Embeddable on a page | Yes — **`block_sqlreports`** pins one report on course / Dashboard / front page, and **`filter_sqlreports`** embeds one inline in any text via `[[sqlreport:id]]` | No (separate report page) | Yes — it *is* a block |
 | Per-viewer rows in a shared block | Yes — one block instance shows each viewer only their own rows (same access path as the report viewer) | n/a | Depends on report type |
 | Who can view a report | Core RB **context + audience** (e.g. "course participants") | Capability only (admin/manager) | Block / role permissions |
 | Write SQL with help | CodeMirror editor: highlight, table/column autocomplete, foreign-key hints, optional AI generation | Plain textarea | Plain textarea |
@@ -817,7 +817,7 @@ Two long-standing plugins build reports from SQL: **Ad-hoc database queries** (`
 **When the others may still fit**
 
 - `report_customsql` is excellent for **scheduled CSV emails** of a fixed query and is very lightweight.
-- `block_configurable_reports` bundles authoring *and* display in one block; SQL Report splits these into `report_sql` (author) + `block_reportsources` (display).
+- `block_configurable_reports` bundles authoring *and* display in one block; SQL Report splits these into `report_sql` (author) + `block_sqlreports` (display).
 
 > SQL Report **can import** the SQL reports from both plugins — see [Importing from other SQL report plugins](#importing-from-other-sql-report-plugins). Each import lands as a fresh draft you review and publish; reports using features that cannot be translated automatically are rejected with a reason so you can port them by hand.
 
