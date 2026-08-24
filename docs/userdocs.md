@@ -624,7 +624,7 @@ Besides opening the full report viewer, a published report can be surfaced **inl
 
 A Moodle block that pins **one** published report — as a table or chart — on a course page, the site front page, or the user Dashboard.
 
-1. Install `block_sqlreports` (it depends on `report_sql`, so install this plugin first).
+1. Install [`block_sqlreports`](https://github.com/marcusgreen/moodle-block_sqlreports) (it depends on `report_sql`, so install this plugin first).
 2. Turn editing on, **Add a block → SQL reports**.
 3. In the block's config, pick a **published** report (only published views are listed) and a **display mode**: *Auto* (chart if the report has a chart configured, else table), *Table*, or *Chart*.
 

@@ -2,7 +2,7 @@
 
 [![Moodle Plugin CI](https://github.com/marcusgreen/report_sql/actions/workflows/ci.yml/badge.svg)](https://github.com/marcusgreen/report_sql/actions/workflows/ci.yml)
 [![GitHub Release](https://img.shields.io/github/release/marcusgreen/report_sql.svg)](https://github.com/marcusgreen/report_sql/releases)
-[![Moodle Support](https://img.shields.io/badge/Moodle-%3E%3D%205.0-blue)](https://moodle.org/plugins/report_sql)
+[![Moodle Support](https://img.shields.io/badge/Moodle-%3E%3D%204.5-blue)](https://moodle.org/plugins/report_sql)
 
 *Reportbuilder ... the Sequel (Thanks to Adam Jenkins)*
 
@@ -24,6 +24,20 @@ The [full user documentation](docs/userdocs.md) covers the edit form, writing SQ
 - Schedule reports to be emailed on a recurring basis.
 - Cross-database placeholders (`%%TIMESTAMP%%`, `%%NOW%%`, `%%COURSEID%%`, `%%CASE%%`, …) keep queries portable across MySQL/MariaDB and PostgreSQL.
 - Import and export report views as portable JSON.
+
+## Companion plugins
+
+A published report can also be shown **inline on a page**, rendered through the same per-viewer
+access path as the report viewer — each person sees only the rows they are allowed to:
+
+- **[filter_sqlreports](https://github.com/marcusgreen/moodle-filter_sqlreports)** — a text filter
+  that embeds a report in any Moodle text (a label, Page, Book chapter, forum post, or course
+  summary) with a `[[sqlreport:ID]]` marker.
+- **[block_sqlreports](https://github.com/marcusgreen/moodle-block_sqlreports)** — a block that pins
+  one published report (as a table or chart) on a course page, the site front page, or the Dashboard.
+
+See [Showing a report on a page](docs/userdocs.md#showing-a-report-on-a-page-block-and-filter) in the
+user documentation for setup.
 
 ## Requirements
 
