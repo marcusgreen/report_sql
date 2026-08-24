@@ -625,7 +625,7 @@ Besides opening the full report viewer, a published report can be surfaced **inl
 A Moodle block that pins **one** published report — as a table or chart — on a course page, the site front page, or the user Dashboard.
 
 1. Install `block_sqlreports` (it depends on `report_sql`, so install this plugin first).
-2. Turn editing on, **Add a block → Report sources**.
+2. Turn editing on, **Add a block → SQL reports**.
 3. In the block's config, pick a **published** report (only published views are listed) and a **display mode**: *Auto* (chart if the report has a chart configured, else table), *Table*, or *Chart*.
 
 One shared block instance shows each viewer only their own rows, so the same block on a course page can show every teacher just their own courses. In chart mode a narrow block adds an **Expand** button that opens the chart in a large modal. The block footer links to the full report; a viewer with no access sees an empty block that hides itself.
@@ -695,7 +695,7 @@ Each page shows every source report, translates its SQL automatically, and marks
 
 The plugin ships a set of ready-made sample report views you can load and adapt. They use only the portable [tokens](#placeholders), so they import and publish on both MySQL/MariaDB and PostgreSQL.
 
-- **Browse and import** — the *Site admin → Reports → SQL Report → Load sample report sources* page is a bulk picker: tick the samples you want and import them at once; a sample whose name already exists is disabled to avoid duplicates. The **Load sample report source** button on the SQL Report list page is the one-at-a-time version (imported with a `Sample:` name prefix so it never collides). Either way each lands as a **draft owned by you** that you publish before use.
+- **Browse and import** — the *Site admin → Reports → SQL Reports → Load sample SQL reports* page is a bulk picker: tick the samples you want and import them at once; a sample whose name already exists is disabled to avoid duplicates. The **Load sample SQL report** button on the SQL Reports list page is the one-at-a-time version (imported with a `Sample:` name prefix so it never collides). Either way each lands as a **draft owned by you** that you publish before use.
 - **Post-install** — a notification after install links straight to the same picker.
 - **CLI** — `php report/sql/cli/import.php` bulk-imports a JSON file of report views (defaults to `report_sql.json` in the current directory).
 

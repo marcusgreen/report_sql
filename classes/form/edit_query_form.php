@@ -44,31 +44,6 @@ class edit_query_form extends moodleform {
         $mform->addElement('hidden', 'id');
         $mform->setType('id', PARAM_INT);
 
-        // Course scope: which course this report is bound to. Leaving it empty means site-wide
-        // (courseid 0). Authors can re-scope an existing query here — e.g. an imported draft that
-        // landed site-wide because its original course id does not exist on this site. The chosen
-        // course is access-checked on save (see edit.php), so listing all courses here is safe.
-        $mform->addElement(
-            'course',
-            'courseid',
-            get_string('coursescope', 'report_sql'),
-            ['multiple' => false, 'includefrontpage' => false]
-        );
-        $mform->setType('courseid', PARAM_INT);
-        $mform->setDefault('courseid', 0);
-        $mform->addHelpButton('courseid', 'coursescope', 'report_sql');
-
-        $mform->addElement(
-            'advcheckbox',
-            'visible',
-            get_string('visible', 'report_sql'),
-            ' ',
-            null,
-            [0, 1]
-        );
-        $mform->setDefault('visible', 1);
-        $mform->addHelpButton('visible', 'visible', 'report_sql');
-
         $mform->addElement('text', 'name', get_string('name', 'report_sql'), ['size' => 60]);
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
@@ -236,6 +211,33 @@ class edit_query_form extends moodleform {
         );
         $mform->setType('audiencecohorts', PARAM_INT);
         $mform->hideIf('audiencecohorts', 'audiencetype', 'neq', 'cohort');
+
+        // Course scope + visibility sit under the audience header: both drive who can open the
+        // report (scope sets the context the RB permission is checked in; visibility gates it),
+        // so they belong beside the audience picker. Leaving the course empty means site-wide
+        // (courseid 0); authors can re-scope an existing query here — e.g. an imported draft that
+        // landed site-wide because its original course id does not exist on this site. The chosen
+        // course is access-checked on save (see edit.php), so listing all courses here is safe.
+        $mform->addElement(
+            'course',
+            'courseid',
+            get_string('coursescope', 'report_sql'),
+            ['multiple' => false, 'includefrontpage' => false]
+        );
+        $mform->setType('courseid', PARAM_INT);
+        $mform->setDefault('courseid', 0);
+        $mform->addHelpButton('courseid', 'coursescope', 'report_sql');
+
+        $mform->addElement(
+            'advcheckbox',
+            'visible',
+            get_string('visible', 'report_sql'),
+            ' ',
+            null,
+            [0, 1]
+        );
+        $mform->setDefault('visible', 1);
+        $mform->addHelpButton('visible', 'visible', 'report_sql');
     }
 
     /**
