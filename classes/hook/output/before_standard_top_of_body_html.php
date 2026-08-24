@@ -34,7 +34,6 @@ use core\hook\output\before_standard_top_of_body_html_generation;
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class before_standard_top_of_body_html {
-
     /**
      * Add the "New SQL report" button to the Report Builder index page.
      *
@@ -44,8 +43,10 @@ class before_standard_top_of_body_html {
         global $PAGE;
 
         // Only on the Report Builder custom-reports index, and only for authors.
-        if ($PAGE->url === null ||
-                !$PAGE->url->compare(new \moodle_url('/reportbuilder/index.php'), URL_MATCH_BASE)) {
+        if (
+            $PAGE->url === null ||
+            !$PAGE->url->compare(new \moodle_url('/reportbuilder/index.php'), URL_MATCH_BASE)
+        ) {
             return;
         }
         if (!has_capability('report/sql:author', \context_system::instance())) {
