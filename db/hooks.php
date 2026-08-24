@@ -15,18 +15,18 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Ad-hoc SQL reports backed by the Reportbuilder API.
+ * Hook callbacks for the SQL Report plugin.
  *
- * @package     report_sql
- * @copyright   2026 Marcus Green
- * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package   report_sql
+ * @copyright 2026 Marcus Green
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'report_sql';
-$plugin->release   = '0.1.17';
-$plugin->version   = 2026082401;
-$plugin->requires  = 2024100700; // Moodle 4.5 LTS — the Reportbuilder API this plugin uses is stable from 4.5.
-$plugin->maturity  = MATURITY_ALPHA;
-$plugin->supported = [405, 502];
+$callbacks = [
+    [
+        'hook' => \core\hook\output\before_standard_top_of_body_html_generation::class,
+        'callback' => 'report_sql\hook\output\before_standard_top_of_body_html::callback',
+    ],
+];
