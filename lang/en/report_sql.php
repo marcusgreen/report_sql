@@ -121,6 +121,7 @@ This is advisory only: it never changes your data and is not required before you
 $string['checkrowcount'] = 'Rows returned: {$a}.';
 $string['checkselectsubquery'] = 'A subquery in the SELECT list is evaluated once per returned row, multiplying work on a large result. A JOIN or a WITH (CTE) is usually faster.';
 $string['checksortindex'] = 'The report sorts by {$a->sortcol}, which is not indexed, so the database orders the whole result. Sorting by an indexed column is faster — indexed columns available: {$a->indexed}.';
+$string['compiledsql'] = 'Compiled SQL (what actually ran)';
 $string['confirmdeletemany'] = 'Are you sure you want to delete these {$a} report source(s)? This drops each backing view and report and cannot be undone.';
 $string['convertaliasspaces'] = 'Replace spaces in the column alias with underscores automatically';
 $string['convertquestionmark'] = 'Convert ? inside quotes to CHAR(63) automatically';

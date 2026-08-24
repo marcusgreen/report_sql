@@ -223,7 +223,10 @@ function report_sql_output_fragment_preview(array $args): string {
 
         return $summary . $chart . $report->output();
     } catch (\moodle_exception $e) {
-        return $OUTPUT->notification($e->getMessage(), 'error');
+        // The view build failed: show the compiled SQL (placeholders/{table} resolved) beside the
+        // error so the author can line the DB error's line numbers up against what actually ran.
+        $compiled = \report_sql\local\sql\view::compile($validated, $courseid);
+        return $OUTPUT->notification($e->getMessage(), 'error') . report_sql_compiled_sql_details($compiled);
     } finally {
         \report_sql\local\sql\view::drop_preview($USER->id);
     }
@@ -257,6 +260,26 @@ function report_sql_preview_summary(string $sql, int $courseid, string $viewname
 
     $items = array_map(static fn(string $line): string => \html_writer::div(s($line)), $lines);
     return \html_writer::div(implode('', $items), 'alert alert-secondary py-1 mb-2', ['role' => 'status']);
+}
+
+/**
+ * Build a collapsible block showing the compiled SQL (placeholders and {table} braces resolved) that
+ * the failed preview view was built from, so an author can line the DB error's line/column numbers
+ * up against the SQL that actually ran rather than their un-substituted source.
+ *
+ * @param string $compiled Compiled SQL from {@see \report_sql\local\sql\view::compile()}.
+ * @return string HTML, or '' when there is nothing to show.
+ */
+function report_sql_compiled_sql_details(string $compiled): string {
+    if (trim($compiled) === '') {
+        return '';
+    }
+    $summary = \html_writer::tag('summary', s(get_string('compiledsql', 'report_sql')));
+    $pre = \html_writer::tag('pre', s($compiled), [
+        'class' => 'mt-1 mb-0 p-2 bg-light border rounded',
+        'style' => 'max-height:16rem;overflow:auto;white-space:pre-wrap;',
+    ]);
+    return \html_writer::tag('details', $summary . $pre, ['class' => 'mt-2', 'open' => 'open']);
 }
 
 /**

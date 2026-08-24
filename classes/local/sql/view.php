@@ -111,7 +111,7 @@ class view {
         global $DB, $CFG;
 
         $fullname = $CFG->prefix . $viewname;
-        $resolved = self::normalise_aliases(self::resolve_placeholders($validatedsql, $courseid));
+        $resolved = self::compile($validatedsql, $courseid);
 
         $ddl = "CREATE OR REPLACE VIEW {$fullname} AS {$resolved}";
 
@@ -130,6 +130,20 @@ class view {
             throw new \moodle_exception('errcreateview', 'report_sql', '', $detail);
         }
         return $viewname;
+    }
+
+    /**
+     * The exact SQL a VIEW is built from for the given validated SQL and course scope: placeholders
+     * resolved, then aliases normalised — i.e. the SQL that actually runs on the database. Exposed so
+     * an error surface (live check, Test query, inline preview) can show the compiled SQL beside the
+     * DB error, whose line/column numbers refer to this string, not the author's un-substituted text.
+     *
+     * @param string $validatedsql Already-validated SQL.
+     * @param int $courseid Course scope to substitute into %%COURSEID%% (0 = site-wide).
+     * @return string The compiled SQL sent to CREATE OR REPLACE VIEW.
+     */
+    public static function compile(string $validatedsql, int $courseid = 0): string {
+        return self::normalise_aliases(self::resolve_placeholders($validatedsql, $courseid));
     }
 
     /**

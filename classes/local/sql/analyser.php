@@ -61,7 +61,7 @@ class analyser {
      *  executed for this exact SQL — the inline preview passes its throwaway view here. When given,
      *  the dry-run gate and the private probe view are skipped: the caller has already proven the SQL
      *  runs, and date-column introspection reuses the supplied view instead of building a second one.
-     * @return array{ok: bool, error: string, rowcount: int, datecolumns: string[],
+     * @return array{ok: bool, error: string, compiledsql: string, rowcount: int, datecolumns: string[],
      *     casecolumns: array<array{col: string, mode: string}>, suggestions: string[],
      *     warnings: string[], indexinfo: string[]}
      */
@@ -69,6 +69,7 @@ class analyser {
         $result = [
             'ok'          => true,
             'error'       => '',
+            'compiledsql' => '',
             'rowcount'    => 0,
             'datecolumns' => [],
             'casecolumns' => [],
@@ -86,7 +87,11 @@ class analyser {
             return $result;
         }
 
-        $resolved = view::resolve_placeholders($validated, $courseid);
+        // Compile exactly as publish does (placeholders resolved + aliases normalised): this is the
+        // SQL the probes below run, so the compiledsql we hand back on a dry-run failure is the
+        // string the DB error's line/column numbers refer to.
+        $resolved = view::compile($validated, $courseid);
+        $result['compiledsql'] = $resolved;
 
         // Cap the (potentially expensive) probe queries with a per-session statement timeout so a
         // pathological report cannot stall a database connection. Each probe already treats a DB

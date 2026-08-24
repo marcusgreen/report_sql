@@ -336,15 +336,18 @@ const buildEditor = (textarea, schema, fkMap) => {
     // synchronously inside the submit handler. English fallbacks cover the pre-load race.
     let convertLabel = 'Convert ? to CHAR(63) automatically';
     let aliasSpacesLabel = 'Replace spaces in the column alias with underscores automatically';
+    let compiledSqlLabel = 'Compiled SQL (what actually ran)';
     let questionmarkMsg = 'SQL contains a ? character, which the database layer treats as a query'
         + ' parameter placeholder.';
     getStrings([
         {key: 'convertquestionmark', component: 'report_sql'},
         {key: 'convertaliasspaces', component: 'report_sql'},
+        {key: 'compiledsql', component: 'report_sql'},
         {key: 'errquestionmark', component: 'report_sql'},
-    ]).then(([convert, aliasspaces, err]) => {
+    ]).then(([convert, aliasspaces, compiled, err]) => {
         convertLabel = convert;
         aliasSpacesLabel = aliasspaces;
+        compiledSqlLabel = compiled;
         questionmarkMsg = err;
         return null;
     }).catch(() => null);
@@ -357,8 +360,11 @@ const buildEditor = (textarea, schema, fkMap) => {
      *
      * @param {string} msg - The error message.
      * @param {string} sql - The SQL that produced it (drives the optional convert link).
+     * @param {string} [compiled] - The compiled SQL the DB actually ran (placeholders/braces
+ *     resolved). When present it is shown in a collapsible block (open by default) so the error's
+ *     line numbers, which refer to the compiled text and not the author's source, can be lined up.
      */
-    function showError(msg, sql) {
+    function showError(msg, sql, compiled) {
         errorBanner.className = 'alert alert-danger mt-1';
         errorBanner.textContent = msg;
         const addFixLink = (label, rewrite) => {
@@ -379,6 +385,9 @@ const buildEditor = (textarea, schema, fkMap) => {
         }
         if (sql && hasAliasWithSpaces(sql)) {
             addFixLink(aliasSpacesLabel, rewriteAliasSpaces);
+        }
+        if (compiled && compiled.trim() && compiled.trim() !== sql.trim()) {
+            errorBanner.appendChild(compiledSqlDetails(compiled, compiledSqlLabel));
         }
         errorBanner.style.display = '';
     }
@@ -484,7 +493,7 @@ const buildEditor = (textarea, schema, fkMap) => {
                     feedAiField(textarea.value, msg);
                 } else if (result.data && !result.data.ok) {
                     const msg = result.data.error || 'Query validation failed.';
-                    showError(msg, textarea.value);
+                    showError(msg, textarea.value, result.data.compiledsql);
                     feedAiField(textarea.value, msg);
                 } else {
                     serverValidated = true;
@@ -512,6 +521,32 @@ const buildEditor = (textarea, schema, fkMap) => {
             warningBanner.style.display = 'none';
         });
     }
+};
+
+/**
+ * Build a <details> block (open by default) showing the compiled SQL in a scrollable <pre>.
+ * The DB error
+ * line/column numbers refer to this compiled text (placeholders and {table} braces resolved), not to
+ * the author's source, so surfacing it lets them line the numbers up. Line breaks are preserved and
+ * the text is set via textContent (no HTML injection).
+ *
+ * @param {string} compiled - The compiled SQL string.
+ * @param {string} label - Translated summary label.
+ * @returns {HTMLElement} A <details> element.
+ */
+const compiledSqlDetails = (compiled, label) => {
+    const details = document.createElement('details');
+    details.className = 'mt-2';
+    details.open = true;
+    const summary = document.createElement('summary');
+    summary.textContent = label;
+    details.appendChild(summary);
+    const pre = document.createElement('pre');
+    pre.className = 'mt-1 mb-0 p-2 bg-light border rounded';
+    pre.style.cssText = 'max-height:16rem;overflow:auto;white-space:pre-wrap;';
+    pre.textContent = compiled;
+    details.appendChild(pre);
+    return details;
 };
 
 /** Default display format applied when a %%TIMESTAMP()%% token gives no format. */

@@ -50,7 +50,7 @@ class validate_sql extends external_api {
      * names and row-dependent runtime errors in select-list expressions.
      *
      * @param string $sql
-     * @return array{ok: bool, error: string}
+     * @return array{ok: bool, error: string, compiledsql?: string}
      */
     public static function execute(string $sql): array {
         global $DB, $CFG;
@@ -70,7 +70,9 @@ class validate_sql extends external_api {
 
         // Live dry-run: validates tables/columns without wrapping the query
         // (wrapping causes false "Duplicate column name" errors when SELECT * joins two tables).
-        $resolved = view::resolve_placeholders($validated);
+        // Compile exactly as publish does (placeholders resolved + aliases normalised) so the
+        // compiledsql we return on error is the string the DB error line numbers refer to.
+        $resolved = view::compile($validated);
 
         // Syntax/table/column check — LIMIT 1 fetches a single row so the select-list
         // expressions are actually evaluated, catching row-dependent runtime errors
@@ -83,7 +85,7 @@ class validate_sql extends external_api {
             $DB->get_records_sql("SELECT * FROM ({$resolved}) rs_dryrun LIMIT 1", []);
         } catch (\dml_exception $e) {
             $detail = $e->error ?: ($e->debuginfo ?: $e->getMessage());
-            return ['ok' => false, 'error' => validator::clean_error($detail)];
+            return ['ok' => false, 'error' => validator::clean_error($detail), 'compiledsql' => $resolved];
         }
 
         // View-compatibility check — creating a VIEW enforces unique column names,
@@ -101,16 +103,16 @@ class validate_sql extends external_api {
             if ($badcol !== null) {
                 $errkey = preg_match('/\s/', $badcol) ? 'erraliasspaces' : 'errcolumnnoalias';
                 return ['ok' => false, 'error' =>
-                    get_string($errkey, 'report_sql', $badcol)];
+                    get_string($errkey, 'report_sql', $badcol), 'compiledsql' => $resolved];
             }
         } catch (\moodle_exception $e) {
             $detail = $e->debuginfo ?: $e->getMessage();
             if (stripos($detail, 'Duplicate column name') !== false) {
                 return ['ok' => false, 'error' =>
-                    get_string('errduplicatecolumn', 'report_sql')];
+                    get_string('errduplicatecolumn', 'report_sql'), 'compiledsql' => $resolved];
             }
             // Any other DDL error (syntax error, multiple statements, etc.) is also fatal.
-            return ['ok' => false, 'error' => validator::clean_error($detail)];
+            return ['ok' => false, 'error' => validator::clean_error($detail), 'compiledsql' => $resolved];
         }
 
         return ['ok' => true, 'error' => '', 'warnings' => validator::get_warnings()];
@@ -125,6 +127,11 @@ class validate_sql extends external_api {
         return new external_single_structure([
             'ok'       => new external_value(PARAM_BOOL, 'True if SQL is valid'),
             'error'    => new external_value(PARAM_TEXT, 'Error message, empty on success'),
+            'compiledsql' => new external_value(
+                PARAM_RAW,
+                'The compiled SQL (placeholders resolved) that produced the error — line numbers match this',
+                VALUE_OPTIONAL
+            ),
             'warnings' => new external_multiple_structure(
                 new external_value(PARAM_TEXT, 'Warning message'),
                 'Non-fatal warnings (e.g. portability issues)',

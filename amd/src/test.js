@@ -97,6 +97,12 @@ const render = async(container, data, sqlField) => {
         if (hasAliasWithSpaces(sql)) {
             await appendFixLink(box, sqlField, 'convertaliasspaces', rewriteAliasSpaces);
         }
+        // Show the compiled SQL (placeholders/{table} resolved) the analyser actually ran, so the
+        // author can line the DB error's line/column numbers up against it rather than their source.
+        const compiled = data.compiledsql || '';
+        if (compiled.trim() && compiled.trim() !== sql.trim()) {
+            box.appendChild(await compiledSqlDetails(compiled));
+        }
         container.appendChild(box);
         // When "Generate SQL with AI" is enabled, feed the error back into the AI
         // question box, mirroring how the submit-time validation banner does it
@@ -316,6 +322,30 @@ const alertBox = (cls, text) => {
     div.setAttribute('role', 'alert');
     div.textContent = text;
     return div;
+};
+
+/**
+ * Build a <details> block (open by default) showing the compiled SQL in a scrollable <pre>.
+ * The DB error's
+ * line/column numbers refer to this compiled text (placeholders and {table} braces resolved), not to
+ * the author's source. Text is set via textContent (no HTML injection); line breaks are preserved.
+ *
+ * @param {string} compiled - The compiled SQL string.
+ * @return {Promise<HTMLElement>} A <details> element.
+ */
+const compiledSqlDetails = async(compiled) => {
+    const details = document.createElement('details');
+    details.className = 'mt-2';
+    details.open = true;
+    const summary = document.createElement('summary');
+    summary.textContent = await getString('compiledsql', 'report_sql');
+    details.appendChild(summary);
+    const pre = document.createElement('pre');
+    pre.className = 'mt-1 mb-0 p-2 bg-light border rounded';
+    pre.style.cssText = 'max-height:16rem;overflow:auto;white-space:pre-wrap;';
+    pre.textContent = compiled;
+    details.appendChild(pre);
+    return details;
 };
 
 /**

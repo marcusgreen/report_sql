@@ -50,7 +50,7 @@ class test_query extends external_api {
      *
      * @param string $sql
      * @param int $courseid
-     * @return array{ok: bool, error: string, rowcount: int, datecolumns: string[],
+     * @return array{ok: bool, error: string, compiledsql: string, rowcount: int, datecolumns: string[],
      *     casecolumns: array<array{col: string, mode: string}>, suggestions: string[],
      *     warnings: string[], indexinfo: string[]}
      */
@@ -74,6 +74,12 @@ class test_query extends external_api {
         return new external_single_structure([
             'ok'          => new external_value(PARAM_BOOL, 'True if the SQL analysed cleanly'),
             'error'       => new external_value(PARAM_TEXT, 'Error message, empty on success'),
+            'compiledsql' => new external_value(
+                PARAM_RAW,
+                'The compiled SQL (placeholders resolved) the analyser ran — line numbers in an error match this',
+                VALUE_DEFAULT,
+                ''
+            ),
             'rowcount'    => new external_value(PARAM_INT, 'Rows the report would return, -1 if uncountable'),
             'datecolumns' => new external_multiple_structure(
                 new external_value(PARAM_TEXT, 'Date-like output column name'),
