@@ -37,6 +37,13 @@ jobs:
           - php: '8.3'
             moodle-branch: 'MOODLE_502_STABLE'
             database: 'pgsql'
+          # Moodle 4.5 LTS — lowest supported branch (see version.php $plugin->requires).
+          - php: '8.3'
+            moodle-branch: 'MOODLE_405_STABLE'
+            database: 'mariadb'
+          - php: '8.3'
+            moodle-branch: 'MOODLE_405_STABLE'
+            database: 'pgsql'
 
     steps:
       - name: Check out repository code
