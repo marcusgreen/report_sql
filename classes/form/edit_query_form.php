@@ -48,14 +48,6 @@ class edit_query_form extends moodleform {
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
 
-        $mform->addElement(
-            'textarea',
-            'description',
-            get_string('description', 'report_sql'),
-            ['rows' => 3, 'cols' => 80]
-        );
-        $mform->setType('description', PARAM_TEXT);
-
         if (get_config('report_sql', 'syntaxhighlight')) {
             // The editor fetches the (large) schema + FK map lazily over AJAX; see
             // report_sql\external\get_schema and report_sql\local\schema.
@@ -123,6 +115,16 @@ class edit_query_form extends moodleform {
             'init',
             ['rs-preview-btn', 'id_querysql', 'id_courseid', 'rs-preview', 'rs-preview-details']
         );
+
+        // Description sits just above the audience header — a free-text note about the report,
+        // logically grouped with its scope/visibility settings rather than the SQL editor above.
+        $mform->addElement(
+            'textarea',
+            'description',
+            get_string('description', 'report_sql'),
+            ['rows' => 3, 'cols' => 80]
+        );
+        $mform->setType('description', PARAM_TEXT);
 
         $this->add_audience_elements($mform);
 
