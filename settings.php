@@ -24,12 +24,15 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-// The index page lives under Site administration → Reports. Register it OUTSIDE the
-// $hassiteconfig guard so the node's own capability governs visibility — otherwise the
-// guard (moodle/site:config) hides it from non-admins who only hold the author capability.
-// Only show it while the plugin is enabled, mirroring core report-plugin disable behaviour.
+// The index page lives under Site administration → Reports → Report builder (core's
+// 'reportbuilder' category), sitting alongside the custom-report tools it feeds. Register it
+// OUTSIDE the $hassiteconfig guard so the node's own capability governs visibility — otherwise
+// the guard (moodle/site:config) hides it from non-admins who only hold the author capability.
+// admin/settings/reportbuilder.php loads (via the settings glob) before this plugin file (loaded
+// from plugins.php), so the category exists here; fall back to 'reports' if it is ever absent.
 if (\report_sql\local\query::is_plugin_enabled()) {
-    $ADMIN->add('reports', new admin_externalpage(
+    $indexparent = $ADMIN->locate('reportbuilder') ? 'reportbuilder' : 'reports';
+    $ADMIN->add($indexparent, new admin_externalpage(
         'report_sql_index',
         get_string('reportsources', 'report_sql'),
         new moodle_url('/report/sql/index.php'),
