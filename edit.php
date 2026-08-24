@@ -23,6 +23,7 @@
  */
 
 require(__DIR__ . '/../../config.php');
+require_once($CFG->libdir . '/adminlib.php');
 
 use report_sql\form\edit_query_form;
 use report_sql\local\query;
@@ -51,10 +52,17 @@ require_capability('report/sql:author', $context);
 require_once(__DIR__ . '/lib.php');
 report_sql_require_enabled();
 
-$PAGE->set_context($context);
-$PAGE->set_url(new moodle_url('/report/sql/edit.php', ['id' => $id, 'courseid' => $courseid]));
-$PAGE->set_pagelayout('admin');
-$PAGE->set_title(get_string('addnew', 'report_sql'));
+// Inherit the admin tree context from the index node (Site administration ▸ Report builder ▸
+// SQL Report) so editing highlights the right menu entry and builds a breadcrumb back to the
+// listing, rather than a bare Home ▸ heading trail. The edit page's own url/title override the
+// node's afterwards; the edit/new leaf is appended once $existing is known.
+admin_externalpage_setup(
+    'report_sql_index',
+    '',
+    null,
+    new moodle_url('/report/sql/edit.php', ['id' => $id, 'courseid' => $courseid]),
+    ['pagelayout' => 'admin']
+);
 $PAGE->set_heading(get_string('reportsources', 'report_sql'));
 
 $existing = null;
@@ -72,6 +80,12 @@ if ($id) {
         throw new required_capability_exception($context, 'report/sql:author', 'nopermissions', '');
     }
 }
+
+// Breadcrumb leaf: the query name when editing, else "New SQL report". The title mirrors it so the
+// browser tab and trail agree.
+$leaf = $existing ? format_string($existing->name) : get_string('addnew', 'report_sql');
+$PAGE->navbar->add($leaf);
+$PAGE->set_title($leaf);
 
 // The audience picker offers course-scoped options only when the query is bound to a course.
 $formcourseid = $existing ? (int) $existing->courseid : $courseid;
