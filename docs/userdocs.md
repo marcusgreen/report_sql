@@ -742,15 +742,15 @@ Any of these settings can be **forced** from Moodle's `config.php`, using core's
 
 ```php
 // In config.php, before require_once(__DIR__ . '/lib/setup.php');
-$CFG->forced_plugin_settings = [
-  'report_sql' => [
-    // Lock the denylist so no admin can remove a protected column.
-    'denycolumns' => 'password,passwordhash,password_hash,secret,client_secret,sesskey,sid,apikey,api_key,token,accesstoken,refreshtoken,sharekey,salt,hash,signature,privatekey,private_key,clientid,client_id',
-    // You can lock the checkboxes too (1 = on, 0 = off):
-    // 'aigenerate' => 0,
-  ],
-];
+
+// Lock the denylist so no admin can remove a protected column.
+$CFG->forced_plugin_settings['report_sql']['denycolumns'] = 'password,passwordhash,password_hash,secret,client_secret,sesskey,sid,apikey,api_key,token,accesstoken,refreshtoken,sharekey,salt,hash,signature,privatekey,private_key,clientid,client_id';
+
+// You can lock the checkboxes too (1 = on, 0 = off):
+// $CFG->forced_plugin_settings['report_sql']['aigenerate'] = 0;
 ```
+
+Assign each key individually (rather than `$CFG->forced_plugin_settings = [...]`) so you never risk overwriting forced settings that another plugin — or an earlier line in `config.php` — has already set.
 
 The setting key is the part after `report_sql/` in the settings page. The forced value is what `get_config('report_sql', 'denycolumns')` returns everywhere in the plugin. To change or unlock it later, edit `config.php` — removing the entry returns control to the UI.
 
