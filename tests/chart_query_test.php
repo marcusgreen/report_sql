@@ -141,7 +141,8 @@ final class chart_query_test extends \advanced_testcase {
 
         $id = query::save($this->chartformdata());
         query::get($id)->publish();
-        $first = reset($this->chart_reports());
+        $reports = $this->chart_reports();
+        $first = reset($reports);
 
         query::get($id)->publish();
         $reports = $this->chart_reports();
@@ -161,7 +162,8 @@ final class chart_query_test extends \advanced_testcase {
 
         $id = query::save($this->chartformdata());
         query::get($id)->publish();
-        $chartreportid = (int) reset($this->chart_reports())->get('id');
+        $reports = $this->chart_reports();
+        $chartreportid = (int) reset($reports)->get('id');
 
         // Re-save with no chart, then re-publish.
         query::save($this->formdata(['id' => $id, 'chart_type' => 'none']));
@@ -243,7 +245,8 @@ final class chart_query_test extends \advanced_testcase {
 
         $id = query::save($this->chartformdata());
         query::get($id)->publish();
-        $chartreportid = (int) reset($this->chart_reports())->get('id');
+        $reports = $this->chart_reports();
+        $chartreportid = (int) reset($reports)->get('id');
 
         $report = \core_reportbuilder\manager::get_report_from_persistent(
             \core_reportbuilder\local\models\report::get_record(['id' => $chartreportid], MUST_EXIST)

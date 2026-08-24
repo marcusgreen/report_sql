@@ -414,7 +414,9 @@ class analyser {
         $scans = []; // Moodle table name => estimated scanned rows, deduped.
         try {
             if ($family === 'mysql') {
-                $plan = $DB->get_records_sql("EXPLAIN {$resolved}", []);
+                // An EXPLAIN plan repeats id=1 across joined tables, so it must not be keyed by its
+                // first column — use a recordset (get_records_sql would raise a duplicate-key debug).
+                $plan = $DB->get_recordset_sql("EXPLAIN {$resolved}", []);
                 foreach ($plan as $row) {
                     $row = (array) $row;
                     $type = strtoupper((string) ($row['type'] ?? ''));
@@ -424,8 +426,10 @@ class analyser {
                         $scans[self::unprefix((string) ($row['table'] ?? '?'))] = $estrows;
                     }
                 }
+                $plan->close();
             } else if ($family === 'postgres') {
-                $plan = $DB->get_records_sql("EXPLAIN {$resolved}", []);
+                // Likewise: the textual plan's "QUERY PLAN" lines are not unique keys.
+                $plan = $DB->get_recordset_sql("EXPLAIN {$resolved}", []);
                 foreach ($plan as $row) {
                     $row = (array) $row;
                     $line = (string) reset($row);
@@ -438,6 +442,7 @@ class analyser {
                         }
                     }
                 }
+                $plan->close();
             }
             // Other families: no portable EXPLAIN — the sort hint (if any) still stands.
         } catch (\dml_exception $e) {

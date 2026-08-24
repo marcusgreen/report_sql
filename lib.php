@@ -132,10 +132,17 @@ function report_sql_extend_navigation_course(
  * @return string Rendered report HTML (or an inline error notification).
  */
 function report_sql_output_fragment_preview(array $args): string {
-    global $USER, $OUTPUT;
+    global $USER, $OUTPUT, $PAGE;
 
     $context = \context_system::instance();
     require_capability('report/sql:author', $context);
+
+    // The preview renders a Report Builder system report, whose flexible_table reads $PAGE->url when
+    // it finishes output. In a fragment the URL may be unset, which raises a debugging() notice on
+    // Moodle 4.5 (magic_get_url). Set it defensively before rendering.
+    if (!$PAGE->has_set_url()) {
+        $PAGE->set_url(new \moodle_url('/report/sql/edit.php'));
+    }
 
     $sql = (string) ($args['sql'] ?? '');
     $courseid = (int) ($args['courseid'] ?? 0);
