@@ -94,22 +94,11 @@ function report_sql_extend_navigation_course(
         return;
     }
 
-    $reportsnode = $parentnode->get('coursereports');
-    if (!$reportsnode) {
-        // Core removes the Reports container before local plugin hooks run when
-        // no report_* plugin added a link to it; recreate it so the link stays
-        // reachable via Course → More → Reports.
-        $reportsnode = $parentnode->add(
-            get_string('reports'),
-            new moodle_url('/report/view.php', ['courseid' => $course->id]),
-            navigation_node::TYPE_CONTAINER,
-            null,
-            'coursereports',
-            new pix_icon('i/stats', '')
-        );
-    }
-
-    $reportsnode->add(
+    // For report plugins, core calls this hook with the course "Reports" container itself as
+    // $parentnode (settings_navigation::load_course_navigation → the 'coursereports' node), so the
+    // link is added straight to it — that is what places it in the course Reports section alongside
+    // core reports. (The generic course-node navigation pass explicitly skips report plugins.)
+    $parentnode->add(
         get_string('reportsources', 'report_sql'),
         new moodle_url('/report/sql/index.php', ['courseid' => $course->id]),
         navigation_node::TYPE_SETTING,
