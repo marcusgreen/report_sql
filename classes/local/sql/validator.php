@@ -244,9 +244,11 @@ class validator {
      * Exact tokens: %%WWWROOT%%, %%COURSEID%%, %%COURSECONTEXT%%, %%NOW%% and the %%CONTEXT_*%% level
      * constants (%%CONTEXT_COURSE%% etc.). The parameterised %%TIMESTAMP(expr)%% (epoch
      * column → datetime, rendered per dialect), %%EPOCH(datetime)%% (datetime literal/expr → epoch
-     * int, per dialect) and %%CASE(expr, mode)%% (text column → upper/lower/title/sentence case,
-     * applied per-viewer as a display callback) tokens are matched by shape; their inner expression
-     * is resolved in {@see \report_sql\local\sql\view::resolve_placeholders()}.
+     * int, per dialect), %%CASE(expr, mode)%% (text column → upper/lower/title/sentence case,
+     * applied per-viewer as a display callback) and %%GROUP_CONCAT([DISTINCT ]expr[, sep])%%
+     * (aggregate → delimited string: MySQL GROUP_CONCAT / Postgres string_agg) tokens are matched by
+     * shape; their inner expression is resolved in
+     * {@see \report_sql\local\sql\view::resolve_placeholders()}.
      *
      * @param string $token A token captured by the %%..%% scan, including the surrounding %%.
      * @return bool
@@ -261,7 +263,7 @@ class validator {
                 return true;
             }
         }
-        return (bool) preg_match('/^%%(?:TIMESTAMP|EPOCH|CASE)\(.+\)%%$/i', $token);
+        return (bool) preg_match('/^%%(?:TIMESTAMP|EPOCH|CASE|GROUP_CONCAT)\(.+\)%%$/i', $token);
     }
 
     /**
