@@ -17,6 +17,19 @@
             }
         },
         {
+            "name": "Course names per category: %%GROUP_CONCAT without DISTINCT",
+            "description": "All course full names in each category, aggregated into one comma-separated string. Demonstrates the %%GROUP_CONCAT(expr[, 'sep'])%% token without DISTINCT, so every row contributes (duplicates kept). Rewrites to GROUP_CONCAT(... SEPARATOR ...) on MySQL/MariaDB and string_agg(...) on Postgres, so the same query runs on both databases.",
+            "querysql": "SELECT\r\n    cc.name AS category,\r\n    %%GROUP_CONCAT(c.fullname, ', ')%% AS courses_in_category\r\nFROM\r\n    {course} c\r\n    JOIN {course_categories} cc ON cc.id = c.category\r\nGROUP BY\r\n    cc.id, cc.name",
+            "courseid": 0,
+            "visible": 1,
+            "chartmeta": {
+                "type": "none",
+                "xcol": "",
+                "ycol": "",
+                "rowlimit": 200
+            }
+        },
+        {
             "name": "Bar chart of user enrolments",
             "description": "Count of distinct users holding each role, grouped by course. Rendered as a bar chart (x = role shortname, y = user count). Roles with no assignments are dropped. To restrict to a single course, add: WHERE c.id = %%COURSEID%% (and pick the course from the dropdown)",
             "querysql": "SELECT r.shortname, COUNT(DISTINCT ra.userid) AS usercount, c.id AS courseid\r\nFROM {role} r\r\nJOIN {role_assignments} ra ON r.id = ra.roleid\r\nJOIN {context} ctx ON ra.contextid = ctx.id\r\nJOIN {course} c ON ctx.instanceid = c.id AND ctx.contextlevel = %%CONTEXT_COURSE%%\r\nGROUP BY r.shortname, c.id\r\nHAVING COUNT(DISTINCT ra.userid) > 0\r\nLIMIT 100",
