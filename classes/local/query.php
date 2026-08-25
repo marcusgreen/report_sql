@@ -1111,12 +1111,15 @@ class query {
                 continue;
             }
             try {
-                // Cap the scan: only care whether distinct count is <= threshold, so counting up to
-                // threshold + 1 distinct values is enough to decide.
+                // Cap the scan: we only care whether the distinct count is <= threshold, so stop after
+                // threshold + 1 distinct values. A result of threshold + 1 means "more than threshold"
+                // (not a dropdown); anything less is the true distinct count. Bounds worst-case cost to
+                // threshold + 1 rows instead of a full-column distinct scan.
                 $distinct = $DB->count_records_sql(
                     "SELECT COUNT(*) FROM (
                         SELECT DISTINCT {$name} FROM {{$viewname}}
                          WHERE {$name} IS NOT NULL
+                         LIMIT " . ($threshold + 1) . "
                     ) rs_enum"
                 );
             } catch (\dml_exception $e) {
