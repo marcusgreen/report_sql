@@ -392,9 +392,10 @@ RULES;
      * `columnsmeta` so the Report Builder entity can render it via a callback while still sorting on
      * the underlying epoch.
      *
-     * The output column name is the `AS` alias when present, otherwise the trailing identifier of a
-     * simple `a.b` / `b` expression. Tokens whose expression is too complex to name without an alias
-     * (e.g. `timecreated + 3600` with no `AS`) are skipped — they cannot be matched to an
+     * The output column name is the alias when present — both `… AS foo` and the implicit `… foo`
+     * form (SQL lets the `AS` keyword be omitted) — otherwise the trailing identifier of a simple
+     * `a.b` / `b` expression. Tokens whose expression is too complex to name without an alias
+     * (e.g. `timecreated + 3600` with no alias) are skipped — they cannot be matched to an
      * introspected column anyway.
      *
      * @param string $sql Raw saved SQL (before placeholder resolution).
@@ -402,8 +403,7 @@ RULES;
      */
     public static function timestamp_columns(string $sql): array {
         $pattern = '/%%TIMESTAMP\(\s*(' . self::TOKEN_EXPR . ')\s*(?:,\s*([^)]*?)\s*)?\)%%'
-            // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
-            . '(?:\s+AS\s+(["`]?)([A-Za-z0-9_]+)\3)?/i';
+            . self::ALIAS_SUFFIX . '/i';
         if (!preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
             return [];
         }
@@ -438,14 +438,29 @@ RULES;
     private const TOKEN_EXPR = '(?:[^(),%]|\([^()%]*\))+?';
 
     /**
+     * Regex fragment matching an optional output-column alias directly after a `…)%%` token, used to
+     * name the view column a token produces. Matches both the explicit `AS foo` form and the implicit
+     * `foo` form (SQL lets a select item be aliased with the `AS` keyword omitted), with an optional
+     * quote/backtick wrapper. A negative lookahead skips a following clause keyword (e.g. `FROM`) so a
+     * token with no alias does not swallow the next word as its alias.
+     *
+     * Assumes exactly two capture groups precede it in the full pattern, so the alias name is group 4
+     * (`$m[4]`) and its opening quote — needed for the closing-quote backreference `\3` — is group 3.
+     */
+    // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
+    private const ALIAS_SUFFIX = '(?:\s+(?:AS\s+)?(?!(?:FROM|WHERE|GROUP|ORDER|HAVING|LIMIT|UNION)\b)'
+        . '(["`]?)([A-Za-z0-9_]+)\3)?';
+
+    /**
      * Find the output columns produced by `%%CASE(expr, mode)%%` tokens in a saved query, mapping
      * each to its requested case mode.
      *
      * Mirrors {@see self::timestamp_columns()}: the resolved SQL emits the bare text expression, so
      * the transform is recorded in `columnsmeta` and applied by the Report Builder entity as a
      * display callback (the stored value stays the original text, so sort/filter act on it). The
-     * output column name is the `AS` alias when present, else the trailing identifier of a simple
-     * `a.b` / `b` expression; tokens too complex to name without an alias are skipped. An unknown or
+     * output column name is the alias when present (`… AS foo` or the implicit `… foo` form), else
+     * the trailing identifier of a simple `a.b` / `b` expression; tokens too complex to name without
+     * an alias are skipped. An unknown or
      * missing mode is ignored, leaving the column as plain text.
      *
      * @param string $sql Raw saved SQL (before placeholder resolution).
@@ -453,8 +468,7 @@ RULES;
      */
     public static function case_columns(string $sql): array {
         $pattern = '/%%CASE\(\s*(' . self::TOKEN_EXPR . ')\s*,\s*([A-Za-z]+)\s*\)%%'
-            // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
-            . '(?:\s+AS\s+(["`]?)([A-Za-z0-9_]+)\3)?/i';
+            . self::ALIAS_SUFFIX . '/i';
         if (!preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
             return [];
         }

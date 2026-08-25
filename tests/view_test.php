@@ -153,6 +153,8 @@ final class view_test extends \advanced_testcase {
         $sql = 'SELECT '
             . '%%TIMESTAMP(u.lastaccess)%% AS lastaccess, '          // Aliased, no format.
             . '%%TIMESTAMP(u.timecreated, ddd dd Mon yyyy)%% AS created, ' // Aliased + format.
+            . '%%TIMESTAMP(fp.modified)%%  created_updated, '        // Implicit alias (no AS).
+            . '%%TIMESTAMP(fp.deleted, dd/mm/yyyy)%% deleted_at, '   // Implicit alias + format.
             . '%%TIMESTAMP(timemodified)%%, '                        // No alias -> trailing ident.
             . "CONCAT(firstname, ' ', %%TIMESTAMP(lastlogin, dd/mm/yy)%%) AS junk " // In expr, aliased outer.
             . 'FROM {user} u';
@@ -161,6 +163,10 @@ final class view_test extends \advanced_testcase {
 
         $this->assertSame('', $map['lastaccess']);
         $this->assertSame('ddd dd Mon yyyy', $map['created']);
+        // Implicit alias (AS keyword omitted) names the column, not the expression's trailing ident.
+        $this->assertSame('', $map['created_updated']);
+        $this->assertArrayNotHasKey('modified', $map);
+        $this->assertSame('dd/mm/yyyy', $map['deleted_at']);
         $this->assertSame('', $map['timemodified']);
         // The lastlogin token has no AS of its own; it is named after its trailing identifier.
         $this->assertSame('dd/mm/yy', $map['lastlogin']);
@@ -192,6 +198,7 @@ final class view_test extends \advanced_testcase {
         $sql = 'SELECT '
             . '%%CASE(u.lastname, upper)%% AS surname, '   // Aliased.
             . '%%CASE(u.firstname, title)%% AS given, '    // Aliased.
+            . '%%CASE(u.middlename, upper)%% middle, '      // Implicit alias (no AS).
             . '%%CASE(city)%% , '                          // No mode -> not a case column.
             . '%%CASE(u.username, lower)%%, '              // No alias -> trailing identifier.
             . '%%CASE(u.email, bogus)%% AS mail '          // Unknown mode -> ignored.
@@ -201,6 +208,8 @@ final class view_test extends \advanced_testcase {
 
         $this->assertSame('upper', $map['surname']);
         $this->assertSame('title', $map['given']);
+        $this->assertSame('upper', $map['middle']);
+        $this->assertArrayNotHasKey('middlename', $map);
         $this->assertSame('lower', $map['username']);
         $this->assertArrayNotHasKey('city', $map);
         $this->assertArrayNotHasKey('mail', $map);
