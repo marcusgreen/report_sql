@@ -13,7 +13,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -26,7 +26,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -52,7 +52,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -65,7 +65,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -78,12 +78,12 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
             "name": "Enrolled users who have never accessed a given course ",
-            "description": "Users enrolled in a course who have no last-access record for it — i.e. never opened the course. The course is hard-coded as en.courseid = 2; edit that id for your course.",
+            "description": "Users enrolled in a course who have no last-access record for it \u2014 i.e. never opened the course. The course is hard-coded as en.courseid = 2; edit that id for your course.",
             "querysql": "SELECT username, firstname, lastname, idnumber\r\nFROM {user_enrolments} ue\r\nJOIN {enrol}           en ON ue.enrolid = en.id\r\nJOIN {user}            uu ON uu.id      = ue.userid\r\nWHERE en.courseid = 2\r\nAND NOT EXISTS (\r\n    SELECT * FROM {user_lastaccess} la\r\n    WHERE la.userid = ue.userid\r\n    AND la.courseid = en.courseid\r\n)",
             "courseid": 0,
             "visible": 1,
@@ -112,7 +112,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -125,7 +125,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -151,7 +151,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -164,7 +164,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -177,7 +177,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -190,7 +190,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -203,7 +203,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -216,7 +216,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -229,7 +229,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -242,7 +242,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -255,7 +255,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -268,7 +268,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -281,7 +281,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -294,7 +294,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -307,7 +307,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -320,7 +320,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         },
         {
@@ -333,7 +333,7 @@
                 "type": "none",
                 "xcol": "",
                 "ycol": "",
-                "rowlimit": 200
+                "rowlimit": ""
             }
         }
     ]
