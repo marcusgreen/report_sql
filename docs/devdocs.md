@@ -479,6 +479,7 @@ Two admin pages migrate SQL reports from older plugins into RS drafts:
   `report_customsql_queries`. Reads the plain `querysql` column (no blob); maps the customsql escape
   tokens `%%Q%%` / `%%C%%` / `%%S%%` → `?` / `:` / `;`; **rejects** interactive named `:param`
   placeholders and `%%USERID%%`. customsql has no course scope, so every draft lands site-wide.
+  Full translation / rejection rules: [import_customsql.md](import_customsql.md).
 
 Both share `classes/local/import_helper.php` (a **trait**) for the deterministic, AI-free SQL
 translation: double-quote → single-quote, MySQL date functions
