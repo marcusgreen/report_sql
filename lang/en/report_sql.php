@@ -232,6 +232,7 @@ $string['errparse'] = 'The SQL could not be parsed: {$a}';
 $string['errpgsqldatefn'] = 'PostgreSQL-only function {$a} is not supported by MySQL. Use a cross-database equivalent.';
 $string['errplaceholder'] = 'The SQL contains an unfilled placeholder "{$a}". Replace it with a real value before saving — e.g. change "l.userid = ##" to "l.userid = 2".';
 $string['errplaceholderuserid'] = 'The SQL contains "{$a}", which is not a supported placeholder. There is no per-viewer placeholder because the report runs from a fixed database view. To restrict the report to the rows for whoever opens it, remove "{$a}" from the SQL, select the user-id column in the "Restrict to viewing user" field at the end of this form, and the per-user filter is applied automatically at run time.';
+$string['errqualifiedtable'] = 'Schema-qualified table reference "{$a}" is not allowed. Reports may only read the site\'s own tables using Moodle\'s {tablename} syntax; cross-schema or cross-database references (e.g. information_schema.columns) are blocked.';
 $string['errquestionmark'] = 'SQL contains a ? character, which the database layer treats as a query parameter placeholder. If ? appears inside a URL string, replace it with CHAR(63) — e.g. CONCAT(\'…/view.php\', CHAR(63), \'id=\', course.id).';
 $string['event:querycreated'] = 'Ad-hoc query created';
 $string['event:querydeleted'] = 'Ad-hoc query deleted';
