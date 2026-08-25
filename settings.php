@@ -107,6 +107,16 @@ if ($hassiteconfig) {
         1
     ));
 
+    // Text columns whose distinct-value count is at or below this threshold get a dropdown (enum)
+    // filter instead of a free-text filter. 0 disables the feature (all text columns stay free-text).
+    $settings->add(new admin_setting_configtext(
+        'report_sql/enumfilterthreshold',
+        get_string('settings:enumfilterthreshold', 'report_sql'),
+        get_string('settings:enumfilterthreshold_desc', 'report_sql'),
+        '30',
+        PARAM_INT
+    ));
+
     $settings->add(new admin_setting_configcheckbox(
         'report_sql/aigenerate',
         get_string('settings:aigenerate', 'report_sql'),
