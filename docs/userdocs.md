@@ -705,7 +705,8 @@ Notes on import:
 If you already have SQL reports in **Configurable reports** (`block_configurable_reports`) or **Ad-hoc database queries** (`report_customsql`), you can migrate them into SQL Report drafts. Two admin pages, both linked from **Site admin → Reports → SQL Report**:
 
 - **Import from Configurable Reports** (`import_cr.php`) — lists the SQL reports stored in the Configurable Reports block.
-- **Import from Ad-hoc Database Queries** (`import_customsql.php`) — lists the queries stored in `report_customsql`.
+<a id="import-customsql"></a>
+- **Import from Ad-hoc Database Queries** (`import_customsql.php`) — lists the queries stored in `report_customsql`. See [Importing from Ad-hoc Database Queries](import_customsql.md) for the full translation and rejection rules.
 
 Each page shows every source report, translates its SQL automatically, and marks each as **importable** or **rejected**:
 
