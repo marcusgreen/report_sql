@@ -278,6 +278,13 @@ class view {
     %%CASE(expr, mode)%% with mode one of upper|lower|title|sentence — e.g.
     %%CASE(u.lastname, upper)%% AS lastname. Note the full closing )%% after the
     mode. expr must not contain '%'.
+  - Aggregate a column into one delimited string (portable across MySQL and
+    Postgres — do NOT write raw GROUP_CONCAT or string_agg):
+    %%GROUP_CONCAT(expr[, 'sep'])%% — e.g.
+    %%GROUP_CONCAT(u.lastname, ', ')%% AS names. The separator is an optional
+    single-quoted literal (defaults to ','); an optional leading DISTINCT is
+    allowed, e.g. %%GROUP_CONCAT(DISTINCT c.format, ', ')%%. Use inside a query
+    that has a GROUP BY. Note the full closing )%%. expr must not contain '%'.
   - %%WWWROOT%% is the site URL, for building links inside a CONCAT.
   - %%CONTEXT_SYSTEM/USER/COURSECAT/COURSE/MODULE/BLOCK%% are the context-level
     constants (e.g. %%CONTEXT_COURSE%% = 50) — prefer these over the literal
@@ -352,6 +359,26 @@ RULES;
                     return "EXTRACT(EPOCH FROM TIMESTAMP {$arg})::int";
                 }
                 return "EXTRACT(EPOCH FROM ({$arg}))::int";
+            },
+            $sql
+        ) ?? $sql;
+
+        // Token %%GROUP_CONCAT([DISTINCT ]expr[, sep])%% — aggregate a column into a delimited string, in
+        // the live dialect: MySQL/MariaDB GROUP_CONCAT([DISTINCT ]expr SEPARATOR sep), Postgres
+        // string_agg([DISTINCT ](expr)::text, sep). The optional leading DISTINCT keyword sits in the same
+        // position for both engines. The separator is an optional single-quoted literal (may itself contain
+        // a comma); it defaults to ',' to match MySQL's native default. Postgres string_agg requires text
+        // input, so expr is cast to text (harmless on already-text columns); MySQL coerces implicitly. Pure
+        // SQL rewrite — the result introspects as plain text, so no columnsmeta / display callback.
+        $sql = preg_replace_callback(
+            '/%%GROUP_CONCAT\(\s*(DISTINCT\s+)?(' . self::TOKEN_EXPR . ')\s*(?:,\s*(\'(?:[^\']|\'\')*\'))?\s*\)%%/i',
+            static function (array $m) use ($postgres): string {
+                $distinct = $m[1] ?? '';
+                $expr     = $m[2];
+                $sep      = ($m[3] ?? '') !== '' ? $m[3] : "','";
+                return $postgres
+                    ? "string_agg({$distinct}({$expr})::text, {$sep})"
+                    : "GROUP_CONCAT({$distinct}{$expr} SEPARATOR {$sep})";
             },
             $sql
         ) ?? $sql;
@@ -447,8 +474,8 @@ RULES;
      * Assumes exactly two capture groups precede it in the full pattern, so the alias name is group 4
      * (`$m[4]`) and its opening quote — needed for the closing-quote backreference `\3` — is group 3.
      */
-    // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
     private const ALIAS_SUFFIX = '(?:\s+(?:AS\s+)?(?!(?:FROM|WHERE|GROUP|ORDER|HAVING|LIMIT|UNION)\b)'
+        // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
         . '(["`]?)([A-Za-z0-9_]+)\3)?';
 
     /**

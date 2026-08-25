@@ -134,6 +134,17 @@ final class sql_validator_test extends \advanced_testcase {
         );
     }
 
+    public function test_group_concat_token_is_supported(): void {
+        // Token %%GROUP_CONCAT(...)%% is recognised by shape, so validation must not reject it as an
+        // unfilled placeholder (including the DISTINCT + comma-in-separator form).
+        $this->assertNotEmpty(
+            validator::validate(
+                "SELECT cc.id, %%GROUP_CONCAT(DISTINCT c.format, ', ')%% AS formats "
+                . 'FROM {course} c JOIN {course_categories} cc ON cc.id = c.category GROUP BY cc.id'
+            )
+        );
+    }
+
     public function test_unknown_context_token_is_rejected(): void {
         // A made-up %%CONTEXT_*%% name is not in the supported set and must be rejected.
         $this->expectException(\moodle_exception::class);

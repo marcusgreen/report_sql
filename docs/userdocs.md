@@ -249,6 +249,7 @@ The plugin supports a small, fixed set of placeholder forms in your SQL. Everyth
 | `%%EPOCH(datetime)%%` | A datetime literal/expression as Unix time (integer seconds) | Cross-database |
 | `%%TIMESTAMP(expr[, format])%%` | `expr` (an epoch column) as a date, optionally formatted | Cross-database; date-sortable |
 | `%%CASE(expr, mode)%%` | `expr` (a text column) displayed in `upper`, `lower`, `title` or `sentence` case | Cross-database; stored value unchanged, so it still sorts/filters on the original text |
+| `%%GROUP_CONCAT([DISTINCT ]expr[, 'sep'])%%` | Aggregates the grouped rows of `expr` into one delimited string (default separator `,`) | Cross-database; use inside a query with `GROUP BY` |
 
 All are substituted once, when the view is built — the view is a fixed `CREATE VIEW`, so these bake a value in; they are **not** per-request parameters.
 
@@ -432,6 +433,30 @@ Notes:
 - Give the column an `AS alias` (or wrap a bare `column`) so the plugin can name the output column. A complex expression with no alias is left as plain text.
 - `mode` must be one of the four above; an unknown mode is ignored (the column shows unchanged).
 - `expr` **cannot contain a `%` character** (the token scan stops at `%`), same as `%%TIMESTAMP%%`.
+
+### `%%GROUP_CONCAT([DISTINCT ]expr[, 'sep'])%%` — combine grouped rows into one string
+
+Collapses the rows within each `GROUP BY` group into a **single delimited string**. Use it when a row has many related values (e.g. every course format used in a category, every role a user holds) and you want them on one line instead of one row each.
+
+```sql
+SELECT cc.name AS category,
+       %%GROUP_CONCAT(DISTINCT c.format, ', ')%% AS formats
+FROM {course} c
+JOIN {course_categories} cc ON cc.id = c.category
+GROUP BY cc.name
+```
+
+→ one row per category, `formats` = `singleactivity, topics, weeks`.
+
+Why a token instead of SQL `GROUP_CONCAT()` / `string_agg()`? **Cross-database.** MySQL/MariaDB spells it `GROUP_CONCAT(expr SEPARATOR 'sep')`; PostgreSQL spells it `string_agg(expr::text, 'sep')`. The token emits the right one for the live database, so the same report view runs on both.
+
+Notes:
+
+- The **separator** is an optional single-quoted literal (`', '`, `' | '`, …). It may contain a comma. Omit it and the default is `,`.
+- An optional leading `DISTINCT` (`%%GROUP_CONCAT(DISTINCT c.format)%%`) removes duplicate values before joining.
+- Give the output an `AS alias`. The aggregated column reads back as plain **text** (no date/case display transform).
+- Use inside a query that has a `GROUP BY` — this is an aggregate, like `COUNT()` / `SUM()`.
+- `expr` **cannot contain a `%` character** (the token scan stops at `%`), same as `%%TIMESTAMP%%` / `%%CASE%%`.
 
 ### Rejected placeholders
 

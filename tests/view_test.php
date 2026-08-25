@@ -214,4 +214,61 @@ final class view_test extends \advanced_testcase {
         $this->assertArrayNotHasKey('city', $map);
         $this->assertArrayNotHasKey('mail', $map);
     }
+
+    /**
+     * %%GROUP_CONCAT(expr, 'sep')%% resolves to the live family's aggregate spelling:
+     * GROUP_CONCAT(expr SEPARATOR 'sep') on MySQL/MariaDB, string_agg((expr)::text, 'sep') on Postgres.
+     */
+    public function test_resolve_group_concat_token_is_dialect(): void {
+        global $DB;
+        $this->resetAfterTest();
+
+        $resolved = view::resolve_placeholders(
+            "SELECT cc.id, %%GROUP_CONCAT(c.shortname, ', ')%% AS names FROM {course} c "
+            . 'JOIN {course_categories} cc ON cc.id = c.category GROUP BY cc.id'
+        );
+
+        if ($DB->get_dbfamily() === 'postgres') {
+            $this->assertStringContainsString("string_agg((c.shortname)::text, ', ')", $resolved);
+        } else {
+            $this->assertStringContainsString("GROUP_CONCAT(c.shortname SEPARATOR ', ')", $resolved);
+        }
+        $this->assertStringNotContainsString('%%', $resolved);
+    }
+
+    /**
+     * The separator is optional and defaults to ',' (MySQL's native default) when omitted.
+     */
+    public function test_resolve_group_concat_default_separator(): void {
+        global $DB;
+        $this->resetAfterTest();
+
+        $resolved = view::resolve_placeholders('SELECT %%GROUP_CONCAT(u.lastname)%% AS names FROM {user} u');
+
+        if ($DB->get_dbfamily() === 'postgres') {
+            $this->assertStringContainsString("string_agg((u.lastname)::text, ',')", $resolved);
+        } else {
+            $this->assertStringContainsString("GROUP_CONCAT(u.lastname SEPARATOR ',')", $resolved);
+        }
+    }
+
+    /**
+     * A leading DISTINCT keyword is carried through into the same position for both engines, and a
+     * separator literal containing a comma (', ') is not mis-split at that inner comma.
+     */
+    public function test_resolve_group_concat_distinct_and_comma_separator(): void {
+        global $DB;
+        $this->resetAfterTest();
+
+        $resolved = view::resolve_placeholders(
+            "SELECT %%GROUP_CONCAT(DISTINCT c.format, ', ')%% AS formats FROM {course} c"
+        );
+
+        if ($DB->get_dbfamily() === 'postgres') {
+            $this->assertStringContainsString("string_agg(DISTINCT (c.format)::text, ', ')", $resolved);
+        } else {
+            $this->assertStringContainsString("GROUP_CONCAT(DISTINCT c.format SEPARATOR ', ')", $resolved);
+        }
+        $this->assertStringNotContainsString('%%', $resolved);
+    }
 }
