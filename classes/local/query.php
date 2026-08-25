@@ -1093,7 +1093,8 @@ class query {
      * so the entity gives them a dropdown filter. Timestamp columns and %%CASE%% text-transform columns
      * are skipped (the latter sort/filter on the original value but a dropdown of raw values would be
      * confusing next to a transformed display). Degrades silently: any probe error leaves the column
-     * as a free-text filter.
+     * as a free-text filter. A row-count guard (`enumrowceiling`) skips detection entirely for views
+     * larger than the ceiling, so publishing a big report does not pay N per-column distinct scans.
      *
      * @param array $meta Column meta, modified in place (adds `enum => true`).
      * @param string $viewname Live view name (without prefix).
@@ -1104,6 +1105,27 @@ class query {
         $threshold = (int) get_config('report_sql', 'enumfilterthreshold');
         if ($threshold <= 0) {
             return;
+        }
+
+        // Row-count guard: one bounded probe before the N per-column distinct scans. When the view has
+        // more than the ceiling rows, skip enum detection (all text columns stay free-text) so a large
+        // report does not pay N full-column scans at publish. The count is itself capped at ceiling + 1
+        // and has no DISTINCT/ORDER BY, so the DB can stream and stop early — the guard's own cost stays
+        // bounded even on an unindexed join view. 0 disables the guard (always probe).
+        $ceiling = (int) get_config('report_sql', 'enumrowceiling');
+        if ($ceiling > 0) {
+            try {
+                $rows = $DB->count_records_sql(
+                    "SELECT COUNT(*) FROM (
+                        SELECT 1 FROM {{$viewname}} LIMIT " . ($ceiling + 1) . "
+                    ) rs_enumguard"
+                );
+            } catch (\dml_exception $e) {
+                return;
+            }
+            if ($rows > $ceiling) {
+                return;
+            }
         }
 
         foreach ($meta as $name => $info) {

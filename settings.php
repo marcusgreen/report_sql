@@ -117,6 +117,17 @@ if ($hassiteconfig) {
         PARAM_INT
     ));
 
+    // Row-count guard for enum detection: if a published view has more than this many rows, skip the
+    // per-column distinct scans entirely (all text columns stay free-text). Bounds publish cost on
+    // large views. 0 disables the guard (always probe, whatever the row count).
+    $settings->add(new admin_setting_configtext(
+        'report_sql/enumrowceiling',
+        get_string('settings:enumrowceiling', 'report_sql'),
+        get_string('settings:enumrowceiling_desc', 'report_sql'),
+        '100000',
+        PARAM_INT
+    ));
+
     $settings->add(new admin_setting_configcheckbox(
         'report_sql/aigenerate',
         get_string('settings:aigenerate', 'report_sql'),
