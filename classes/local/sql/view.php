@@ -474,8 +474,8 @@ RULES;
      * Assumes exactly two capture groups precede it in the full pattern, so the alias name is group 4
      * (`$m[4]`) and its opening quote — needed for the closing-quote backreference `\3` — is group 3.
      */
-    // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
     private const ALIAS_SUFFIX = '(?:\s+(?:AS\s+)?(?!(?:FROM|WHERE|GROUP|ORDER|HAVING|LIMIT|UNION)\b)'
+        // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
         . '(["`]?)([A-Za-z0-9_]+)\3)?';
 
     /**
