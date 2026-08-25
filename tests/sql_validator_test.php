@@ -196,6 +196,48 @@ final class sql_validator_test extends \advanced_testcase {
         validator::validate('SELECT id FROM {sessions}');
     }
 
+    public function test_qualified_table_reference_is_rejected(): void {
+        // A schema-qualified (dotted) table name is never braced by auto_brace() and so would
+        // slip past the {tablename} DENY_TABLES scan, reaching the wider DB surface. Reject it.
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('errqualifiedtable', 'report_sql', 'information_schema.columns'));
+        validator::validate('SELECT * FROM information_schema.columns');
+    }
+
+    public function test_qualified_table_in_comma_list_is_rejected(): void {
+        // The dotted reference is the *second* table in a comma FROM-list, so a single
+        // FROM/JOIN regex would miss it — the parse-tree walk still catches it.
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('errqualifiedtable', 'report_sql', 'mysql.user'));
+        validator::validate('SELECT * FROM {user} u, mysql.user m');
+    }
+
+    public function test_qualified_table_in_join_is_rejected(): void {
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('errqualifiedtable', 'report_sql', 'information_schema.tables'));
+        validator::validate('SELECT t.id FROM {user} u JOIN information_schema.tables t ON t.id = u.id');
+    }
+
+    public function test_qualified_table_in_subquery_is_rejected(): void {
+        // Nested inside a derived-table subquery — the recursive walk reaches it.
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('errqualifiedtable', 'report_sql', 'mysql.user'));
+        validator::validate('SELECT x.id FROM (SELECT id FROM mysql.user) x');
+    }
+
+    public function test_qualified_column_reference_still_allowed(): void {
+        // A dotted *column* reference (alias.column) is expr_type=colref, not a table position,
+        // so it must not be mistaken for a schema-qualified table.
+        $sql = 'SELECT u.id, u.firstname FROM {user} u WHERE u.deleted = 0';
+        $this->assertNotEmpty(validator::validate($sql));
+    }
+
+    public function test_cte_reference_still_allowed(): void {
+        // A CTE name referenced in FROM is a bare (dotless) word, so it passes the dotted-table check.
+        $sql = 'WITH recent AS (SELECT id FROM {user}) SELECT id FROM recent';
+        $this->assertNotEmpty(validator::validate($sql));
+    }
+
     public function test_mixed_case_quoted_alias_no_longer_warns(): void {
         $sql = 'SELECT ue.userid, c.shortname AS "Course_Shortname" '
             . 'FROM {user_enrolments} ue JOIN {enrol} e ON ue.enrolid = e.id '
