@@ -679,7 +679,7 @@ class query {
             throw new \moodle_exception($errkey, 'report_sql', '', $badcol);
         }
 
-        $meta = self::build_columnsmeta($columns, $this->sql());
+        $meta = self::build_columnsmeta($columns, $this->sql(), $viewname);
 
         // Register the Reportbuilder report (idempotent). create_report() will set ->type for us.
         // We create with defaults disabled because the datasource cannot resolve its columns until
@@ -1047,11 +1047,18 @@ class query {
      * transform applied at display time (the stored value stays the original text so sort/filter
      * act on it); recover the mode from the saved SQL the same way.
      *
+     * Low-cardinality text columns get an `enum` flag when $viewname is supplied and the
+     * `enumfilterthreshold` setting is non-zero: the live view is probed for each plain-text column's
+     * distinct-value count, and columns with between 2 and the threshold distinct values are flagged so
+     * the entity renders a dropdown filter instead of a free-text one (see {@see adhoc_view::build_filters()}).
+     * The flag is frozen into columnsmeta at publish time like the rest of the meta.
+     *
      * @param array $columns Column map from {@see view::columns()} (has meta_type).
      * @param string $sql Raw saved SQL (before placeholder resolution), for timestamp-token recovery.
-     * @return array Column meta keyed by column name (type, label, dateformat?, textcase?).
+     * @param string|null $viewname Live view name (without prefix) to probe for enum candidates; null skips.
+     * @return array Column meta keyed by column name (type, label, dateformat?, textcase?, enum?).
      */
-    public static function build_columnsmeta(array $columns, string $sql): array {
+    public static function build_columnsmeta(array $columns, string $sql, ?string $viewname = null): array {
         $tsformats = view::timestamp_columns($sql);
         $casemodes = view::case_columns($sql);
 
@@ -1074,7 +1081,76 @@ class query {
                 }
             }
         }
+
+        if ($viewname !== null) {
+            self::flag_enum_columns($meta, $viewname);
+        }
         return $meta;
+    }
+
+    /**
+     * Flag plain-text columns whose distinct-value count is within the `enumfilterthreshold` setting,
+     * so the entity gives them a dropdown filter. Timestamp columns and %%CASE%% text-transform columns
+     * are skipped (the latter sort/filter on the original value but a dropdown of raw values would be
+     * confusing next to a transformed display). Degrades silently: any probe error leaves the column
+     * as a free-text filter. A row-count guard (`enumrowceiling`) skips detection entirely for views
+     * larger than the ceiling, so publishing a big report does not pay N per-column distinct scans.
+     *
+     * @param array $meta Column meta, modified in place (adds `enum => true`).
+     * @param string $viewname Live view name (without prefix).
+     */
+    private static function flag_enum_columns(array &$meta, string $viewname): void {
+        global $DB;
+
+        $threshold = (int) get_config('report_sql', 'enumfilterthreshold');
+        if ($threshold <= 0) {
+            return;
+        }
+
+        // Row-count guard: one bounded probe before the N per-column distinct scans. When the view has
+        // more than the ceiling rows, skip enum detection (all text columns stay free-text) so a large
+        // report does not pay N full-column scans at publish. The count is itself capped at ceiling + 1
+        // and has no DISTINCT/ORDER BY, so the DB can stream and stop early — the guard's own cost stays
+        // bounded even on an unindexed join view. 0 disables the guard (always probe).
+        $ceiling = (int) get_config('report_sql', 'enumrowceiling');
+        if ($ceiling > 0) {
+            try {
+                $rows = $DB->count_records_sql(
+                    "SELECT COUNT(*) FROM (
+                        SELECT 1 FROM {{$viewname}} LIMIT " . ($ceiling + 1) . "
+                    ) rs_enumguard"
+                );
+            } catch (\dml_exception $e) {
+                return;
+            }
+            if ($rows > $ceiling) {
+                return;
+            }
+        }
+
+        foreach ($meta as $name => $info) {
+            if (($info['type'] ?? 'text') !== 'text' || isset($info['textcase'])) {
+                continue;
+            }
+            try {
+                // Cap the scan: we only care whether the distinct count is <= threshold, so stop after
+                // threshold + 1 distinct values. A result of threshold + 1 means "more than threshold"
+                // (not a dropdown); anything less is the true distinct count. Bounds worst-case cost to
+                // threshold + 1 rows instead of a full-column distinct scan.
+                $distinct = $DB->count_records_sql(
+                    "SELECT COUNT(*) FROM (
+                        SELECT DISTINCT {$name} FROM {{$viewname}}
+                         WHERE {$name} IS NOT NULL
+                         LIMIT " . ($threshold + 1) . "
+                    ) rs_enum"
+                );
+            } catch (\dml_exception $e) {
+                continue;
+            }
+            if ($distinct >= 2 && $distinct <= $threshold) {
+                $meta[$name]['enum'] = true;
+            }
+        }
     }
 
     /**

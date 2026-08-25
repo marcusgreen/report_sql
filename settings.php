@@ -107,6 +107,27 @@ if ($hassiteconfig) {
         1
     ));
 
+    // Text columns whose distinct-value count is at or below this threshold get a dropdown (enum)
+    // filter instead of a free-text filter. 0 disables the feature (all text columns stay free-text).
+    $settings->add(new admin_setting_configtext(
+        'report_sql/enumfilterthreshold',
+        get_string('settings:enumfilterthreshold', 'report_sql'),
+        get_string('settings:enumfilterthreshold_desc', 'report_sql'),
+        '30',
+        PARAM_INT
+    ));
+
+    // Row-count guard for enum detection: if a published view has more than this many rows, skip the
+    // per-column distinct scans entirely (all text columns stay free-text). Bounds publish cost on
+    // large views. 0 disables the guard (always probe, whatever the row count).
+    $settings->add(new admin_setting_configtext(
+        'report_sql/enumrowceiling',
+        get_string('settings:enumrowceiling', 'report_sql'),
+        get_string('settings:enumrowceiling_desc', 'report_sql'),
+        '100000',
+        PARAM_INT
+    ));
+
     $settings->add(new admin_setting_configcheckbox(
         'report_sql/aigenerate',
         get_string('settings:aigenerate', 'report_sql'),

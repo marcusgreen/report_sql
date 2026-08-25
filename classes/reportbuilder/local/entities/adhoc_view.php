@@ -19,7 +19,7 @@ declare(strict_types=1);
 namespace report_sql\reportbuilder\local\entities;
 
 use core_reportbuilder\local\entities\base;
-use core_reportbuilder\local\filters\{boolean_select, date, number, text};
+use core_reportbuilder\local\filters\{boolean_select, date, number, select, text};
 use core_reportbuilder\local\report\{column, filter};
 use report_sql\local\chart_presenter;
 use report_sql\local\query;
@@ -39,7 +39,7 @@ class adhoc_view extends base {
     /** @var string Internal entity name. */
     public const ENTITY = 'adhoc';
 
-    /** @var array<string, array{type:string,label:string,dateformat?:string}> */
+    /** @var array<string, array{type:string,label:string,dateformat?:string,textcase?:string,enum?:bool}> */
     private array $columnsmeta;
 
     /** @var string VIEW name (without Moodle prefix). */
@@ -150,15 +150,51 @@ class adhoc_view extends base {
         $alias = $this->get_table_alias($this->viewname);
         $filters = [];
         foreach ($this->columnsmeta as $name => $meta) {
-            $filters[] = (new filter(
-                self::rb_filter_class($meta['type'] ?? 'text'),
+            $isenum = !empty($meta['enum']) && ($meta['type'] ?? 'text') === 'text';
+
+            $f = (new filter(
+                $isenum ? select::class : self::rb_filter_class($meta['type'] ?? 'text'),
                 $name,
                 self::raw_title($name),
                 $this->get_entity_name(),
                 "{$alias}.{$name}"
             ))->add_joins($this->get_joins());
+
+            if ($isenum) {
+                $f->set_options_callback($this->enum_options_callback($name));
+            }
+            $filters[] = $f;
         }
         return $filters;
+    }
+
+    /**
+     * Build the distinct-value options callback for a dropdown (enum) filter. Deferred to filter-render
+     * time so the option list always reflects the live view (values added since publish still appear).
+     * Runs one cheap `SELECT DISTINCT` on the view; degrades to an empty list on error.
+     *
+     * @param string $name Column name.
+     * @return callable():array<string,string>
+     */
+    private function enum_options_callback(string $name): callable {
+        $viewname = $this->viewname;
+        return static function () use ($viewname, $name): array {
+            global $DB;
+            try {
+                $values = $DB->get_fieldset_sql(
+                    "SELECT DISTINCT {$name} FROM {{$viewname}}
+                      WHERE {$name} IS NOT NULL
+                   ORDER BY {$name}"
+                );
+            } catch (\dml_exception $e) {
+                return [];
+            }
+            $options = [];
+            foreach ($values as $value) {
+                $options[(string) $value] = (string) $value;
+            }
+            return $options;
+        };
     }
 
     /**
