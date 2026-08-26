@@ -33,4 +33,8 @@ $observers = [
         'eventname' => '\core_reportbuilder\event\report_viewed',
         'callback'  => '\report_sql\observer::report_viewed',
     ],
+    [
+        'eventname' => '\core_reportbuilder\event\report_deleted',
+        'callback'  => '\report_sql\observer::report_deleted',
+    ],
 ];
