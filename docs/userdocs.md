@@ -758,7 +758,7 @@ Common messages:
 
 | Setting | Default | Purpose |
 |---|---|---|
-| Sensitive column denylist | `password,secret,sesskey,token,accesstoken,refreshtoken,sharekey,salt,hash,signature,privatekey,…` | Comma-separated column names stripped from every introspected result |
+| Sensitive column denylist | `password`, `secret`, `sesskey`, `token`, `accesstoken`, `refreshtoken`, `sharekey`, `salt`, `hash`, `signature`, `privatekey`, … | Comma-separated column names stripped from every introspected result (stored without spaces; see the settings page for the full default) |
 | SQL syntax highlight and autocomplete | On | CodeMirror 6 editor with keyword/table/column autocomplete from the live database |
 | AI SQL generation | Off | Show the AI question box on the edit form. Requires **local_sqlchat** installed and configured |
 
