@@ -758,9 +758,15 @@ Common messages:
 
 | Setting | Default | Purpose |
 |---|---|---|
+| Enable SQL Report | On | When unticked the plugin is disabled: its Reports-menu entry is removed and its pages (list, edit, run, chart) are blocked. Published Report Builder reports are unaffected |
 | Sensitive column denylist | `password`, `secret`, `sesskey`, `token`, `accesstoken`, `refreshtoken`, `sharekey`, `salt`, `hash`, `signature`, `privatekey`, … | Comma-separated column names stripped from every introspected result (stored without spaces; see the settings page for the full default) |
+| Table denylist | Built-in protected tables (`config`, `sessions`, token, password-history and similar) | Comma / space / newline separated table names that may never be queried. Fully editable — removing an entry allows that table, so edit with care |
 | SQL syntax highlight and autocomplete | On | CodeMirror 6 editor with keyword/table/column autocomplete from the live database |
+| Show last modified column | On | Show a sortable **Last modified** column in the report sources list |
+| Dropdown filter threshold | `30` | A text column with this many distinct values or fewer (measured at publish) gets a dropdown filter instead of free-text. `0` disables (all text columns stay free-text) |
+| Dropdown filter row ceiling | `100000` | Skip dropdown-filter detection when a published view has more rows than this, so a large report avoids a per-column distinct scan at publish (its text columns stay free-text). `0` = always probe. Only relevant when the threshold above is non-zero |
 | AI SQL generation | Off | Show the AI question box on the edit form. Requires **local_sqlchat** installed and configured |
+| View history retention (days) | `365` | How many days to keep the report-view audit history; older rows are removed by a scheduled task. `0` keeps the history forever |
 
 ### Locking a setting so no admin can change it
 
