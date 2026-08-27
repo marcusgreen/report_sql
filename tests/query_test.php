@@ -211,6 +211,36 @@ final class query_test extends \advanced_testcase {
         $this->assertSame('SELECT id FROM {user}', $copy->querysql);
     }
 
+    public function test_duplicate_rejects_non_owner_without_viewall(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        $id = query::save($this->formdata(['name' => 'Admin owned']));
+
+        // A plain author who is neither the owner nor a viewall holder must not
+        // be able to copy another user's query (IDOR guard).
+        $gen  = $this->getDataGenerator();
+        $user = $gen->create_user();
+        $roleid = $gen->create_role();
+        assign_capability('report/sql:author', CAP_ALLOW, $roleid, \context_system::instance()->id, true);
+        role_assign($roleid, $user->id, \context_system::instance()->id);
+        accesslib_clear_all_caches_for_unit_testing();
+
+        $this->setUser($user);
+        $this->expectException(\required_capability_exception::class);
+        query::get($id)->duplicate();
+    }
+
+    public function test_duplicate_allows_viewall_holder(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        $id = query::save($this->formdata(['name' => 'Admin owned']));
+
+        // A viewall holder (like a site admin) may copy any query.
+        $this->setUser($this->privileged_nonadmin());
+        $copyid = query::get($id)->duplicate();
+        $this->assertNotSame($id, $copyid);
+    }
+
     public function test_delete_removes_record_and_artefacts(): void {
         global $DB;
         $this->resetAfterTest();

@@ -44,6 +44,14 @@ $PAGE->set_heading(get_string('reportsources', 'report_sql'));
 if (optional_param('download', 0, PARAM_INT)) {
     require_sesskey();
     $ids = optional_param_array('queryids', [], PARAM_INT);
+    // Restrict the export to queries the user may actually see: those they own,
+    // plus anything else when they hold report/sql:viewall (site admins do).
+    // Without this an author could export any query by guessing its id (IDOR).
+    $allowed = query::visible_to_current_user();
+    if (!has_capability('report/sql:viewall', $context)) {
+        $allowed = array_filter($allowed, static fn($q): bool => (int) $q->ownerid === (int) $USER->id);
+    }
+    $ids = array_values(array_intersect($ids, array_keys($allowed)));
     if (!$ids) {
         redirect(
             $returnurl,

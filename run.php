@@ -55,6 +55,7 @@ try {
             break;
         case 'copy':
             require_capability('report/sql:author', $context);
+            // duplicate() enforces owner/viewall on the source query.
             $newid = $query->duplicate();
             redirect(
                 new moodle_url('/report/sql/edit.php', ['id' => $newid]),
