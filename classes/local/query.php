@@ -59,6 +59,12 @@ class query {
     private \stdClass $record;
 
     /**
+     * @var bool True while {@see tear_down()} is deleting bound reports, so the report_deleted
+     * observer ({@see on_report_deleted()}) ignores our own deletions and only heals external ones.
+     */
+    private static bool $tearingdown = false;
+
+    /**
      * Wrap a query database record.
      *
      * @param \stdClass $record The query database record.
@@ -966,27 +972,89 @@ class query {
      * @param \stdClass $record
      */
     private static function tear_down(int $queryid, \stdClass $record): void {
-        // Delete all Report Builder reports bound to this query via the queryid config.
-        foreach (self::bound_report_ids($queryid) as $rid) {
-            $cfgname = 'queryid_for_report_' . $rid;
-            try {
-                $report = report_model::get_record(['id' => $rid]);
-                if ($report) {
-                    reporthelper::delete_report($rid);
+        // reporthelper::delete_report() fires \core_reportbuilder\event\report_deleted, which our own
+        // observer listens to. Flag the reentry so on_report_deleted() ignores deletions we initiate
+        // here (unpublish / SQL-change republish / healing) and only reacts to external ones.
+        self::$tearingdown = true;
+        try {
+            // Delete all Report Builder reports bound to this query via the queryid config.
+            foreach (self::bound_report_ids($queryid) as $rid) {
+                $cfgname = 'queryid_for_report_' . $rid;
+                try {
+                    $report = report_model::get_record(['id' => $rid]);
+                    if ($report) {
+                        reporthelper::delete_report($rid);
+                    }
+                    unset_config($cfgname, 'report_sql');
+                } catch (\dml_exception | \moodle_exception $e) {
+                    debugging('report_sql: failed to delete report ' . $rid . ': ' . $e->getMessage());
                 }
-                unset_config($cfgname, 'report_sql');
-            } catch (\dml_exception | \moodle_exception $e) {
-                debugging('report_sql: failed to delete report ' . $rid . ': ' . $e->getMessage());
             }
+
+            if (!empty($record->viewname)) {
+                try {
+                    view::drop($queryid);
+                } catch (\moodle_exception $e) {
+                    debugging('report_sql: failed to drop view: ' . $e->getMessage());
+                }
+            }
+        } finally {
+            self::$tearingdown = false;
+        }
+    }
+
+    /**
+     * Heal a query whose bound Report Builder report was deleted directly through core's
+     * /reportbuilder/index.php (outside this plugin), which otherwise leaves a dangling reportid /
+     * chartreportid and the "View report" link fataling with core RB's invalid-report error.
+     *
+     * Called from {@see \report_sql\observer::report_deleted}. No-op for a deletion this plugin
+     * itself initiated (guarded by {@see self::$tearingdown}) or a report that is not one of ours.
+     *
+     * @param int $reportid Id of the just-deleted Report Builder report.
+     */
+    public static function on_report_deleted(int $reportid): void {
+        global $DB;
+
+        if (self::$tearingdown || $reportid <= 0) {
+            return; // Our own deletion, or nothing to do.
+        }
+        $query = self::from_report_id($reportid);
+        if (!$query) {
+            return; // Not bound to any of our queries.
         }
 
-        if (!empty($record->viewname)) {
-            try {
-                view::drop($queryid);
-            } catch (\moodle_exception $e) {
-                debugging('report_sql: failed to drop view: ' . $e->getMessage());
-            }
+        // Drop the now-orphaned binding for the deleted report.
+        unset_config('queryid_for_report_' . $reportid, 'report_sql');
+        $record = $query->record;
+
+        if ((int) $record->chartreportid === $reportid) {
+            // The companion chart report was deleted: clear its denormalised id, leave the data
+            // report and publish state intact (a re-publish regenerates the chart from chartmeta).
+            $DB->set_field(self::TABLE, 'chartreportid', null, ['id' => $query->id()]);
+            return;
         }
+
+        if ((int) $record->reportid === $reportid) {
+            // The primary data report was deleted out from under us: demote the query to draft and
+            // sweep any remaining bound reports (chart / additional) + the orphan view, so nothing
+            // dangles. A re-publish rebuilds everything from the saved SQL.
+            self::tear_down($query->id(), $record);
+            $DB->update_record(self::TABLE, (object) [
+                'id'            => $query->id(),
+                'status'        => self::STATUS_DRAFT,
+                'viewname'      => null,
+                'reportid'      => null,
+                'chartreportid' => null,
+                'columnsmeta'   => null,
+                'timemodified'  => time(),
+            ]);
+            \report_sql\event\query_unpublished::create_and_trigger($query->id(), $query->name());
+            return;
+        }
+
+        // An additional report (create_additional_report): the binding is already cleared above and
+        // the primary report is untouched, so there is nothing further to heal.
     }
 
     /**

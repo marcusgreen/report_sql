@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace report_sql;
 
 use core\event\course_deleted;
+use core_reportbuilder\event\report_deleted;
 use core_reportbuilder\event\report_viewed;
 use report_sql\local\query;
 use report_sql\local\report_visibility;
@@ -59,5 +60,19 @@ class observer {
             return; // Not one of our data reports.
         }
         query::record_view($queryid, $reportid, (int) $event->userid, (int) $event->timecreated);
+    }
+
+    /**
+     * Heal a query whose bound Report Builder report was deleted directly through core's
+     * /reportbuilder/index.php, which otherwise leaves a dangling reportid and makes the plugin's
+     * "View report" link fatal with core RB's invalid-report error.
+     *
+     * report_deleted fires for every report site-wide; on_report_deleted() cheaply ignores any
+     * report not bound to one of our queries (the queryid config is memory-cached per request).
+     *
+     * @param report_deleted $event
+     */
+    public static function report_deleted(report_deleted $event): void {
+        query::on_report_deleted((int) $event->objectid);
     }
 }
