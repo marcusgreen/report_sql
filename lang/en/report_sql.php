@@ -26,6 +26,9 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['actionapply'] = 'Apply';
 $string['actionbarlabel'] = 'With selected rows';
+$string['actionconfirm'] = 'Apply "{$a->op}" to {$a->count} selected row(s)? This cannot easily be undone.';
+$string['actiondone'] = 'Bulk action complete: {$a->applied} applied, {$a->skipped} skipped.';
+$string['actionnorows'] = 'No rows were selected.';
 $string['actioncohort'] = 'Target cohort';
 $string['actioncohortadd'] = 'Add to cohort';
 $string['actioncourse'] = 'Target course';
@@ -61,7 +64,9 @@ $string['actionsuspend'] = 'Suspend user accounts';
 $string['actionunenrol'] = 'Unenrol from course';
 $string['addnew'] = 'New SQL report';
 $string['erractioncohort'] = 'Choose the cohort that the "Add to cohort" action will add users to.';
+$string['erractionopinvalid'] = 'That action is not available for this report.';
 $string['erractionsdisabled'] = 'Bulk actions are not enabled for this report.';
+$string['erractiontoomany'] = 'Too many rows selected. Select at most {$a} at a time.';
 $string['erractioncourse'] = 'Choose a target course for the enrolment actions, or set a course scope for the query.';
 $string['erractionmessage'] = 'Enter the message text that the "Message users" action will send.';
 $string['erractionops'] = 'Choose at least one action to offer, or turn bulk actions off.';
@@ -274,6 +279,7 @@ $string['errplaceholder'] = 'The SQL contains an unfilled placeholder "{$a}". Re
 $string['errplaceholderuserid'] = 'The SQL contains "{$a}", which is not a supported placeholder. There is no per-viewer placeholder because the report runs from a fixed database view. To restrict the report to the rows for whoever opens it, remove "{$a}" from the SQL, select the user-id column in the "Restrict to viewing user" field at the end of this form, and the per-user filter is applied automatically at run time.';
 $string['errqualifiedtable'] = 'Schema-qualified table reference "{$a}" is not allowed. Reports may only read the site\'s own tables using Moodle\'s {tablename} syntax; cross-schema or cross-database references (e.g. information_schema.columns) are blocked.';
 $string['errquestionmark'] = 'SQL contains a ? character, which the database layer treats as a query parameter placeholder. If ? appears inside a URL string, replace it with CHAR(63) — e.g. CONCAT(\'…/view.php\', CHAR(63), \'id=\', course.id).';
+$string['event:actionapplied'] = 'Report bulk action applied';
 $string['event:querycreated'] = 'Ad-hoc query created';
 $string['event:querydeleted'] = 'Ad-hoc query deleted';
 $string['event:querypublished'] = 'Ad-hoc query published';
@@ -304,6 +310,7 @@ $string['lastmodified'] = 'Last modified';
 $string['name'] = 'Name';
 $string['noqueries'] = 'No report sources yet.';
 $string['norows'] = 'No data to display.';
+$string['openactions'] = 'Open actions';
 $string['owner'] = 'Owner';
 $string['pagecoursecolumn'] = 'Restrict to the course the block is on';
 $string['pagecoursecolumn_help'] = 'Applies only when this report is shown through the SQL Report block on a course page. Pick the output column holding a course id; the block then shows only rows for the course of the page it sits on, so one block (or a block added to every course) shows each course its own data.

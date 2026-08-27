@@ -73,6 +73,15 @@ class transfer {
      * @return array<string, mixed>
      */
     private static function record_to_source(\stdClass $rec): array {
+        // Carry the actionable config, but drop `params` (roleid / courseid / cohortid are local ids
+        // meaningless on another site): the import lands as a draft and the owner re-picks them.
+        $actionsmeta = $rec->actionsmeta ? json_decode($rec->actionsmeta, true) : null;
+        if (is_array($actionsmeta)) {
+            unset($actionsmeta['params']);
+        } else {
+            $actionsmeta = null;
+        }
+
         return [
             'name'        => (string) $rec->name,
             'description' => (string) ($rec->description ?? ''),
@@ -80,6 +89,7 @@ class transfer {
             'courseid'    => (int) ($rec->courseid ?? 0),
             'visible'     => (int) ($rec->visible ?? 1),
             'chartmeta'   => $rec->chartmeta ? json_decode($rec->chartmeta, true) : null,
+            'actionsmeta' => $actionsmeta,
         ];
     }
 
@@ -115,6 +125,8 @@ class transfer {
                 'visible'     => (int) ($raw['visible'] ?? 1),
                 'chartmeta'   => isset($raw['chartmeta']) && is_array($raw['chartmeta'])
                     ? $raw['chartmeta'] : null,
+                'actionsmeta' => isset($raw['actionsmeta']) && is_array($raw['actionsmeta'])
+                    ? $raw['actionsmeta'] : null,
             ];
         }
         return $sources;
@@ -175,6 +187,7 @@ class transfer {
                 'courseid'     => $courseid,
                 'visible'      => (int) ($source['visible'] ?? 1),
                 'chartmeta'    => !empty($source['chartmeta']) ? json_encode($source['chartmeta']) : null,
+                'actionsmeta'  => !empty($source['actionsmeta']) ? json_encode($source['actionsmeta']) : null,
                 'ownerid'      => (int) $USER->id,
                 'status'       => query::STATUS_DRAFT,
                 'viewname'     => null,

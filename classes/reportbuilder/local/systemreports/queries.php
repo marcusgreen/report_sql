@@ -53,7 +53,8 @@ class queries extends system_report {
 
         // Base fields consumed by the row action URLs and their per-row visibility callbacks below.
         $this->add_base_fields(
-            "{$alias}.id, {$alias}.status, {$alias}.reportid, {$alias}.chartreportid, {$alias}.ownerid, {$alias}.chartmeta"
+            "{$alias}.id, {$alias}.status, {$alias}.reportid, {$alias}.chartreportid, {$alias}.ownerid, " .
+            "{$alias}.chartmeta, {$alias}.courseid, {$alias}.actionsmeta"
         );
 
         $columns = [
@@ -311,6 +312,29 @@ class queries extends system_report {
             new lang_string('viewchart', 'report_sql')
         ))->add_callback(static function (\stdClass $row): bool {
             return $row->status === query::STATUS_PUBLISHED && !empty($row->chartreportid);
+        }));
+
+        // Open the actionable view: rows with a select-all checkbox column + bulk-action bar. Shown
+        // for a published query that has bulk actions enabled, to holders of report/sql:actexecute in
+        // the query's own context (course-scoped queries evaluate the cap in that course).
+        $this->add_action((new action(
+            new moodle_url('/report/sql/actions.php', ['id' => ':id']),
+            new pix_icon('i/checkedcircle', ''),
+            [],
+            false,
+            new lang_string('openactions', 'report_sql')
+        ))->add_callback(static function (\stdClass $row): bool {
+            if ($row->status !== query::STATUS_PUBLISHED || empty($row->actionsmeta)) {
+                return false;
+            }
+            $meta = json_decode((string) $row->actionsmeta, true);
+            if (empty($meta['enabled']) || empty($meta['ops'])) {
+                return false;
+            }
+            $context = $row->courseid > 0
+                ? \context_course::instance((int) $row->courseid)
+                : \context_system::instance();
+            return has_capability('report/sql:actexecute', $context);
         }));
 
         // Deep-link to the report's Schedules tab (RB editors only).
