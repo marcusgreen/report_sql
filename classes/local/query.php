@@ -924,8 +924,10 @@ class query {
         // Only the owner (or a report/sql:viewall holder — which includes site
         // admins) may copy a query, so an author cannot clone another user's
         // private/draft SQL by id. Mirrors the gate in delete.php / edit.php.
-        if ((int) $this->record->ownerid !== (int) $USER->id
-                && !has_capability('report/sql:viewall', \context_system::instance())) {
+        if (
+            (int) $this->record->ownerid !== (int) $USER->id &&
+            !has_capability('report/sql:viewall', \context_system::instance())
+        ) {
             throw new \required_capability_exception(
                 \context_system::instance(),
                 'report/sql:viewall',
