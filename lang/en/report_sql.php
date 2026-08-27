@@ -26,6 +26,7 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['actions'] = 'Actions';
 $string['addnew'] = 'New SQL report';
+$string['createfeaturesnote'] = 'Save this query as a draft, then publish it to unlock more options — charts and per-user and per-course filters — which need the published report\'s columns to configure.';
 $string['ai:copied'] = 'Copied';
 $string['ai:copy'] = 'Copy';
 $string['ai:generate'] = 'Generate SQL';

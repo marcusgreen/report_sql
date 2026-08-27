@@ -252,6 +252,18 @@ class edit_query_form extends moodleform {
         $idval  = $mform->getElementValue('id');
         $id     = is_array($idval) ? (int) $idval[0] : (int) $idval;
         if (!$id) {
+            // Brand-new query: the chart / filter sections need a published view's columns, so they
+            // can't be shown yet. Tell the author they exist, unlocked by saving + publishing.
+            $mform->addElement(
+                'static',
+                'newfeaturesnote',
+                '',
+                \html_writer::div(
+                    get_string('createfeaturesnote', 'report_sql'),
+                    'alert alert-info',
+                    ['role' => 'note']
+                )
+            );
             return;
         }
 
