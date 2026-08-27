@@ -263,6 +263,62 @@ class query {
     }
 
     /**
+     * Decoded actionable-report config (bulk row-select + built-in Moodle ops). Unlike columnsmeta
+     * this is read live, not frozen at publish. Shape: {enabled, ops[], subject, subjectcolumn}.
+     *
+     * @return array{enabled?:bool,ops?:string[],subject?:string,subjectcolumn?:string}
+     */
+    public function actions_meta(): array {
+        $raw = $this->record->actionsmeta ?? '';
+        if ($raw === '' || $raw === null) {
+            return [];
+        }
+        $decoded = json_decode((string) $raw, true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * Whether this query has actionable bulk operations enabled with at least one op configured.
+     *
+     * @return bool
+     */
+    public function actions_enabled(): bool {
+        $meta = $this->actions_meta();
+        return !empty($meta['enabled']) && !empty($meta['ops']);
+    }
+
+    /**
+     * Output column whose value identifies the subject (user or course) each bulk action targets.
+     * Empty string when actions are not configured.
+     *
+     * @return string
+     */
+    public function action_subjectcolumn(): string {
+        $meta = $this->actions_meta();
+        return (string) ($meta['subjectcolumn'] ?? '');
+    }
+
+    /**
+     * The enabled bulk-op keys for this query (registry keys), or [] when actions are off.
+     *
+     * @return string[]
+     */
+    public function action_ops(): array {
+        $meta = $this->actions_meta();
+        return array_values(array_filter((array) ($meta['ops'] ?? []), 'is_string'));
+    }
+
+    /**
+     * The author-configured op parameters (roleid, courseid, cohortid, messagetext).
+     *
+     * @return array<string, mixed>
+     */
+    public function action_params(): array {
+        $meta = $this->actions_meta();
+        return is_array($meta['params'] ?? null) ? $meta['params'] : [];
+    }
+
+    /**
      * Output column holding a course id. When set and the report is shown in a block on a course
      * page, rows are limited to that page's course (the block passes its current course id into
      * {@see fetch_rows_for_viewer()}). Empty = no page-course filter. Block-only: the standalone
@@ -462,6 +518,50 @@ class query {
     }
 
     /**
+     * The per-viewer row-scoping WHERE for the published view, alias-qualified for use as a Report
+     * Builder base condition. Mirrors the per-user (useridcolumn) and teacher-course (coursecolumn)
+     * filters {@see fetch_rows_for_viewer()} applies, so the actionable system report over the view
+     * cannot surface rows the data report would hide. Returns ['1 = 1', []] when the query sets no
+     * scope. A filter naming a missing column fails closed (throws), same as fetch.
+     *
+     * @param string $alias The report's table alias for the view.
+     * @return array{0: string, 1: array<string, mixed>} [wheresql, params].
+     */
+    public function viewer_scope_sql(string $alias): array {
+        global $DB, $USER;
+
+        $meta = $this->columns_meta();
+        $wheres = [];
+        $params = [];
+
+        $useridcolumn = $this->useridcolumn();
+        if ($useridcolumn !== '') {
+            if (!array_key_exists($useridcolumn, $meta)) {
+                throw new \moodle_exception('errchartnotconfigured', 'report_sql');
+            }
+            $wheres[] = "{$alias}.{$useridcolumn} = :rs_uid";
+            $params['rs_uid'] = (int) $USER->id;
+        }
+
+        $coursecolumn = $this->coursecolumn();
+        if ($coursecolumn !== '') {
+            if (!array_key_exists($coursecolumn, $meta)) {
+                throw new \moodle_exception('errchartnotconfigured', 'report_sql');
+            }
+            $courseids = self::teacher_course_ids((int) $USER->id);
+            if (!$courseids) {
+                $wheres[] = '1 = 0';
+            } else {
+                [$insql, $inparams] = $DB->get_in_or_equal($courseids, SQL_PARAMS_NAMED, 'rs_c');
+                $wheres[] = "{$alias}.{$coursecolumn} {$insql}";
+                $params += $inparams;
+            }
+        }
+
+        return [$wheres ? implode(' AND ', $wheres) : '1 = 1', $params];
+    }
+
+    /**
      * The strftime format for an output column when it is a %%TIMESTAMP%% (epoch) column, else null.
      * Lets chart labels reuse the same date formatting as the data report. Matched case-insensitively
      * like {@see self::column_textcase()}.
@@ -525,6 +625,47 @@ class query {
         }
         $meta = json_decode((string) ($columnsmeta ?: '[]'), true);
         return (is_array($meta) && array_key_exists($choice, $meta)) ? $choice : null;
+    }
+
+    /**
+     * Build the actionsmeta JSON from submitted edit-form data, validated against the query's live
+     * columns. Returns null (actions off) unless enabled with a valid subject column and at least
+     * one known op. Op parameters are sanitised but stored whole — the runtime dispatch reads only
+     * the params the chosen ops need.
+     *
+     * @param \stdClass $data Edit-form data (action_* fields).
+     * @param string|null $columnsmeta JSON column metadata of the published query.
+     * @return string|null actionsmeta JSON, or null when actions are off/invalid.
+     */
+    private static function build_actionsmeta(\stdClass $data, ?string $columnsmeta): ?string {
+        if (empty($data->action_enabled)) {
+            return null;
+        }
+
+        $subjectcolumn = self::valid_column_choice((string) ($data->action_subjectcolumn ?? ''), $columnsmeta);
+        $known = array_keys(\report_sql\local\action\action_registry::all());
+        $ops = array_values(array_intersect((array) ($data->action_ops ?? []), $known));
+        if ($subjectcolumn === null || !$ops) {
+            return null;
+        }
+
+        $subject = (string) ($data->action_subject ?? 'user');
+        if (!in_array($subject, ['user', 'course'], true)) {
+            $subject = 'user';
+        }
+
+        return json_encode([
+            'enabled'       => true,
+            'ops'           => $ops,
+            'subject'       => $subject,
+            'subjectcolumn' => $subjectcolumn,
+            'params'        => [
+                'roleid'      => (int) ($data->action_roleid ?? 0),
+                'courseid'    => (int) ($data->action_courseid ?? 0),
+                'cohortid'    => (int) ($data->action_cohortid ?? 0),
+                'messagetext' => clean_param((string) ($data->action_messagetext ?? ''), PARAM_TEXT),
+            ],
+        ]);
     }
 
     /**
@@ -642,6 +783,9 @@ class query {
                 (string) ($data->pagecoursecolumn ?? ''),
                 $existing->columnsmeta
             );
+            // Actionable-report config (bulk row-select + built-in ops). Column-dependent, so
+            // validated against the published columns like the filter columns above; read live.
+            $record->actionsmeta = self::build_actionsmeta($data, $existing->columnsmeta);
             // The datasource stops offering a per-user filter column; purge any saved instances
             // of it from the report so they don't linger as stale config.
             if (

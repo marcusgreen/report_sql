@@ -25,13 +25,22 @@
 /**
  * Apply schema/data changes for each released version.
  *
- * No steps yet: this is the plugin's first release, so db/install.xml holds the full current schema
- * and there is no earlier installed version to upgrade from. Add versioned blocks here on future
- * releases.
- *
  * @param int $oldversion The currently installed plugin version.
  * @return bool
  */
 function xmldb_report_sql_upgrade($oldversion) {
+    global $DB;
+    $dbman = $DB->get_manager();
+
+    if ($oldversion < 2026082700) {
+        // Actionable reports: JSON config for bulk row-select + built-in Moodle ops.
+        $table = new xmldb_table('report_sql_query');
+        $field = new xmldb_field('actionsmeta', XMLDB_TYPE_TEXT, null, null, null, null, null, 'pagecoursecolumn');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_plugin_savepoint(true, 2026082700, 'report', 'sql');
+    }
+
     return true;
 }

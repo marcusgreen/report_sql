@@ -24,8 +24,48 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+$string['actionapply'] = 'Apply';
+$string['actionbarlabel'] = 'With selected rows';
+$string['actioncohort'] = 'Target cohort';
+$string['actioncohortadd'] = 'Add to cohort';
+$string['actioncourse'] = 'Target course';
+$string['actioncourse_help'] = 'The course the Enrol / Unenrol actions apply to. Leave unset to use the query\'s own course scope; required when the query is site-wide.';
+$string['actionenable'] = 'Enable bulk actions';
+$string['actionenable_help'] = 'Adds a select-all checkbox column and an action bar to this report, so a user with the "Run bulk actions" capability can tick rows and run a built-in Moodle operation over them. Each operation is still checked against the operator\'s own permission for every affected row.';
+$string['actionenablelabel'] = 'Let users run bulk actions on selected rows';
+$string['actionenrol'] = 'Enrol in course';
+$string['actionerradmin'] = 'Skipped: cannot be applied to a site administrator';
+$string['actionerrnocohort'] = 'No target cohort configured for this action';
+$string['actionerrnocourse'] = 'No target course configured for this action';
+$string['actionerrnomanual'] = 'The course has no enabled manual enrolment method';
+$string['actionerrnomessage'] = 'No message text configured for this action';
+$string['actionerrself'] = 'Skipped: cannot be applied to your own account';
+$string['actionerrsendfail'] = 'The message could not be sent';
+$string['actionmessage'] = 'Message users';
+$string['actionmessagesubject'] = 'Notification';
+$string['actionmessagetext'] = 'Message text';
+$string['actionops'] = 'Available actions';
+$string['actionpublishrequired'] = 'Publish this report first to configure row actions — the action controls need the published view\'s columns.';
+$string['actionops_help'] = 'The operations offered in this report\'s action bar. Configure the matching parameter below for each one you enable (role and course for enrolment, cohort for "Add to cohort", text for "Message users").';
+$string['actionrole'] = 'Enrolment role';
+$string['actionrole_help'] = 'The role assigned when the Enrol action enrols a user. Leave unset to use the site default student role.';
 $string['actions'] = 'Actions';
+$string['actionsettings'] = 'Row actions';
+$string['actionskipnocap'] = 'Skipped: you do not have permission over this row';
+$string['actionsubject'] = 'Action targets';
+$string['actionsubjectcolumn'] = 'Subject ID column';
+$string['actionsubjectcolumn_help'] = 'The output column holding the id each action targets — a user id for user actions. Rows with an empty value in this column cannot be selected.';
+$string['actionsubjectcourse'] = 'Courses';
+$string['actionsubjectuser'] = 'Users';
+$string['actionsuspend'] = 'Suspend user accounts';
+$string['actionunenrol'] = 'Unenrol from course';
 $string['addnew'] = 'New SQL report';
+$string['erractioncohort'] = 'Choose the cohort that the "Add to cohort" action will add users to.';
+$string['erractionsdisabled'] = 'Bulk actions are not enabled for this report.';
+$string['erractioncourse'] = 'Choose a target course for the enrolment actions, or set a course scope for the query.';
+$string['erractionmessage'] = 'Enter the message text that the "Message users" action will send.';
+$string['erractionops'] = 'Choose at least one action to offer, or turn bulk actions off.';
+$string['erractionsubjectcol'] = 'Choose the column holding the id each action targets.';
 $string['ai:copied'] = 'Copied';
 $string['ai:copy'] = 'Copy';
 $string['ai:generate'] = 'Generate SQL';
@@ -276,6 +316,7 @@ $string['pluginexplained_help'] = 'This plugin lets you write a SQL SELECT query
 When you publish a query, the plugin creates a database VIEW from your SQL, reads its columns, and registers a Report Builder datasource pointing at that view. You can then build, filter and share the report like any other Report Builder report.
 
 Only SELECT queries are allowed, and a denylist blocks access to sensitive tables. Editing the SQL of a published query rebuilds the view and report on the next publish.';
+$string['messageprovider:actionmessage'] = 'Messages sent by a report bulk action';
 $string['pluginname'] = 'SQL Report';
 $string['preview'] = 'Preview first 5 rows';
 $string['preview_help'] = 'Renders your current SQL as a real Report Builder report, inline and without saving or publishing. Columns are typed and formatted exactly as they would be on publish, so this is a quick way to see what the report will look like. Only the first 5 rows are shown.';
@@ -360,6 +401,7 @@ $string['settings:syntaxhighlight'] = 'SQL syntax highlight and autocomplete';
 $string['settings:syntaxhighlight_desc'] = 'Enable a CodeMirror 6 SQL editor on the query form. Suggests SQL keywords plus Moodle table and column names from the live database.';
 $string['settings:viewretaindays'] = 'View history retention (days)';
 $string['settings:viewretaindays_desc'] = 'How many days to keep the report-view audit history. Older rows are removed by a scheduled task. Set to 0 to keep the history forever.';
+$string['sql:actexecute'] = 'Run bulk actions on report rows';
 $string['sql:approve'] = 'Approve and publish report sources';
 $string['sql:author'] = 'Author SQL report sources';
 $string['sql:view'] = 'Run published report sources';

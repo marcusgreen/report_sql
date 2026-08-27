@@ -77,4 +77,16 @@ $capabilities = [
             'manager' => CAP_ALLOW,
         ],
     ],
+    // Execute built-in bulk Moodle operations (enrol/unenrol/suspend/message/cohort) over rows
+    // selected in an actionable report. High risk: it mutates users and enrolments, and can send
+    // messages. Every op is additionally gated by its own core capability, checked per target
+    // context at execute time — this cap only admits a holder to the actions UI. Manager only.
+    'report/sql:actexecute' => [
+        'riskbitmask' => RISK_DATALOSS | RISK_SPAM,
+        'captype'     => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes'  => [
+            'manager' => CAP_ALLOW,
+        ],
+    ],
 ];

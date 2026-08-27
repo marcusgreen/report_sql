@@ -35,6 +35,8 @@
                COMMENT="Output column holding a course id; when set, rows are limited to courses the viewer teaches. NULL = no teacher-course filter."/>
         <FIELD NAME="pagecoursecolumn" TYPE="char" LENGTH="64" NOTNULL="false" SEQUENCE="false"
                COMMENT="Output column holding a course id; when the report is shown in a block on a course page, rows are limited to that page's course. NULL = no page-course filter."/>
+        <FIELD NAME="actionsmeta" TYPE="text" NOTNULL="false" SEQUENCE="false"
+               COMMENT="JSON config for the actionable report (bulk row-select + built-in Moodle ops): enabled flag, chosen ops, subject type and subject column. NULL = no actions."/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
       </FIELDS>

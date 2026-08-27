@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace report_sql\form;
 
+use report_sql\local\action\action_registry;
 use report_sql\local\sql\validator;
 use moodleform;
 
@@ -308,6 +309,18 @@ class edit_query_form extends moodleform {
                     $mform->setType('focuschart', PARAM_BOOL);
                     $mform->setDefault('focuschart', 0);
                 }
+                // Row actions, like the chart, need the published view's columns to configure.
+                $mform->addElement('header', 'actionsheader', get_string('actionsettings', 'report_sql'));
+                $mform->addElement(
+                    'static',
+                    'action_unpublished_note',
+                    '',
+                    \html_writer::div(
+                        get_string('actionpublishrequired', 'report_sql'),
+                        'alert alert-warning',
+                        ['role' => 'alert']
+                    )
+                );
             }
             return;
         }
@@ -444,6 +457,93 @@ class edit_query_form extends moodleform {
         $mform->setType('chart_showdata', PARAM_BOOL);
         $mform->setDefault('chart_showdata', !empty($chartmeta['showdata']));
         $mform->addHelpButton('chart_showdata', 'chartshowdata', 'report_sql');
+
+        $this->add_actions_elements($mform, $record, $xopts);
+    }
+
+    /**
+     * Actionable-report controls: enable bulk row-select, pick the subject column, choose which
+     * built-in ops the action bar offers, and configure each op's fixed parameter (role, course,
+     * cohort, message). Column-dependent, so built here in definition_after_data() from the live
+     * view's columns — same as the per-user filter and chart sections.
+     *
+     * @param \MoodleQuickForm $mform
+     * @param \stdClass $record The saved query record.
+     * @param array $xopts Column select options (['' => choose] + column => column).
+     */
+    private function add_actions_elements(\MoodleQuickForm $mform, \stdClass $record, array $xopts): void {
+        global $DB;
+
+        $meta = $record->actionsmeta ? json_decode($record->actionsmeta, true) : [];
+        if (!is_array($meta)) {
+            $meta = [];
+        }
+
+        $mform->addElement('header', 'actionsheader', get_string('actionsettings', 'report_sql'));
+
+        $mform->addElement(
+            'advcheckbox',
+            'action_enabled',
+            get_string('actionenable', 'report_sql'),
+            get_string('actionenablelabel', 'report_sql')
+        );
+        $mform->setType('action_enabled', PARAM_BOOL);
+        $mform->setDefault('action_enabled', !empty($meta['enabled']));
+        $mform->addHelpButton('action_enabled', 'actionenable', 'report_sql');
+
+        // Which identity the ops act on. v1 ships user ops; course is scaffolded for v1.1.
+        $mform->addElement('select', 'action_subject', get_string('actionsubject', 'report_sql'), [
+            'user'   => get_string('actionsubjectuser', 'report_sql'),
+            'course' => get_string('actionsubjectcourse', 'report_sql'),
+        ]);
+        $mform->setType('action_subject', PARAM_ALPHA);
+        $mform->setDefault('action_subject', $meta['subject'] ?? 'user');
+        $mform->disabledIf('action_subject', 'action_enabled', 'notchecked');
+
+        // The output column whose value is the subject id (a user id for user ops).
+        $mform->addElement('select', 'action_subjectcolumn', get_string('actionsubjectcolumn', 'report_sql'), $xopts);
+        $mform->setType('action_subjectcolumn', PARAM_ALPHANUMEXT);
+        $mform->setDefault('action_subjectcolumn', $meta['subjectcolumn'] ?? ($record->useridcolumn ?? ''));
+        $mform->addHelpButton('action_subjectcolumn', 'actionsubjectcolumn', 'report_sql');
+        $mform->disabledIf('action_subjectcolumn', 'action_enabled', 'notchecked');
+
+        // The ops offered in the action bar (multi-select from the registry).
+        $ops = $mform->addElement('select', 'action_ops', get_string('actionops', 'report_sql'), action_registry::menu());
+        $ops->setMultiple(true);
+        $mform->setDefault('action_ops', $meta['ops'] ?? []);
+        $mform->addHelpButton('action_ops', 'actionops', 'report_sql');
+        $mform->disabledIf('action_ops', 'action_enabled', 'notchecked');
+
+        // Per-op fixed parameters. Author-time config keeps the runtime action bar a single dropdown.
+        $roleoptions = ['' => get_string('choosedots')];
+        foreach (role_fix_names(get_all_roles(), \context_system::instance(), ROLENAME_ORIGINAL) as $role) {
+            $roleoptions[$role->id] = $role->localname;
+        }
+        $mform->addElement('select', 'action_roleid', get_string('actionrole', 'report_sql'), $roleoptions);
+        $mform->setType('action_roleid', PARAM_INT);
+        $mform->setDefault('action_roleid', $meta['params']['roleid'] ?? '');
+        $mform->addHelpButton('action_roleid', 'actionrole', 'report_sql');
+        $mform->disabledIf('action_roleid', 'action_enabled', 'notchecked');
+
+        $mform->addElement('course', 'action_courseid', get_string('actioncourse', 'report_sql'), [
+            'includefrontpage' => false,
+        ]);
+        $mform->setDefault('action_courseid', $meta['params']['courseid'] ?? ($record->courseid ?: ''));
+        $mform->addHelpButton('action_courseid', 'actioncourse', 'report_sql');
+        $mform->disabledIf('action_courseid', 'action_enabled', 'notchecked');
+
+        $cohortoptions = ['' => get_string('choosedots')]
+            + $DB->get_records_menu('cohort', null, 'name ASC', 'id, name');
+        $mform->addElement('select', 'action_cohortid', get_string('actioncohort', 'report_sql'), $cohortoptions);
+        $mform->setType('action_cohortid', PARAM_INT);
+        $mform->setDefault('action_cohortid', $meta['params']['cohortid'] ?? '');
+        $mform->disabledIf('action_cohortid', 'action_enabled', 'notchecked');
+
+        $mform->addElement('textarea', 'action_messagetext', get_string('actionmessagetext', 'report_sql'),
+            ['rows' => 3, 'cols' => 50]);
+        $mform->setType('action_messagetext', PARAM_TEXT);
+        $mform->setDefault('action_messagetext', $meta['params']['messagetext'] ?? '');
+        $mform->disabledIf('action_messagetext', 'action_enabled', 'notchecked');
     }
 
     /**
@@ -484,6 +584,29 @@ class edit_query_form extends moodleform {
         }
         if ($audiencetype === 'cohort' && empty($data['audiencecohorts'])) {
             $errors['audiencecohorts'] = get_string('erraudiencecohortsempty', 'report_sql');
+        }
+
+        // Actionable-report config is only coherent when a subject column and at least one op are
+        // set, and each chosen op has the parameter it needs.
+        if (!empty($data['action_enabled'])) {
+            $ops = (array) ($data['action_ops'] ?? []);
+            if (empty($data['action_subjectcolumn'])) {
+                $errors['action_subjectcolumn'] = get_string('erractionsubjectcol', 'report_sql');
+            }
+            if (!$ops) {
+                $errors['action_ops'] = get_string('erractionops', 'report_sql');
+            }
+            // Enrol/unenrol need a course: the report's own scope, or an explicit target course.
+            $needscourse = array_intersect($ops, ['enrol_user', 'unenrol_user']);
+            if ($needscourse && (int) ($data['courseid'] ?? 0) <= 0 && empty($data['action_courseid'])) {
+                $errors['action_courseid'] = get_string('erractioncourse', 'report_sql');
+            }
+            if (in_array('cohort_add', $ops, true) && empty($data['action_cohortid'])) {
+                $errors['action_cohortid'] = get_string('erractioncohort', 'report_sql');
+            }
+            if (in_array('message_user', $ops, true) && trim((string) ($data['action_messagetext'] ?? '')) === '') {
+                $errors['action_messagetext'] = get_string('erractionmessage', 'report_sql');
+            }
         }
 
         return $errors;

@@ -15,18 +15,18 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Ad-hoc SQL reports backed by the Reportbuilder API.
+ * Message providers for report_sql.
  *
- * @package     report_sql
- * @copyright   2026 Marcus Green
- * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package   report_sql
+ * @copyright 2026 Marcus Green
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'report_sql';
-$plugin->release   = '0.1.21';
-$plugin->version   = 2026082700;
-$plugin->requires  = 2024100700; // Moodle 4.5 LTS — the Reportbuilder API this plugin uses is stable from 4.5.
-$plugin->maturity  = MATURITY_ALPHA;
-$plugin->supported = [405, 502];
+$messageproviders = [
+    // Notification sent by the "Message users" bulk action on an actionable report.
+    'actionmessage' => [
+        'capability' => 'report/sql:actexecute',
+    ],
+];
