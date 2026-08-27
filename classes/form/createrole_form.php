@@ -54,6 +54,7 @@ class createrole_form extends \moodleform {
             null,
             [0, 1]
         );
+        $mform->setType('approve', PARAM_BOOL);
         $mform->setDefault('approve', 1);
 
         $mform->addElement(
@@ -64,6 +65,7 @@ class createrole_form extends \moodleform {
             null,
             [0, 1]
         );
+        $mform->setType('viewall', PARAM_BOOL);
         $mform->setDefault('viewall', 1);
 
         // Only offer the AI capability when local_sqlchat is installed (its capability exists).
@@ -76,6 +78,7 @@ class createrole_form extends \moodleform {
                 null,
                 [0, 1]
             );
+            $mform->setType('aigenerate', PARAM_BOOL);
             $mform->setDefault('aigenerate', 1);
         }
 

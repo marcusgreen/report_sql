@@ -5,6 +5,12 @@
  * @copyright  2026 Marcus Green
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
+/**
+ * Wire up the observer that copies a visible SQL validation error into the AI question box.
+ *
+ * @return {void}
+ */
 export const init = () => {
     const aiField = document.getElementById('rs-ai-question');
     if (!aiField) {
