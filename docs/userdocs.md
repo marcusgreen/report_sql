@@ -103,12 +103,12 @@ Holders can then create report views **anywhere** (authoring is system-wide; the
 
 | Field | What it does |
 |---|---|
+| **Name** | The title shown on the finished Report Builder report. Required. |
+| **SQL (SELECT only)** | A single `SELECT` or `WITH … SELECT`. See [Writing SQL](#writing-sql). Required. |
+| **Description** | Optional notes for yourself or other authors. |
+| **Audience** | Who can open the published report. See [Who can view the report](#who-can-view-the-report-audiences). |
 | **Course scope** | The course this report belongs to. Leave empty for a **site-wide** report. The course sets (a) the context where the report's "view report" permission is checked, and (b) the default audience. Re-scope an existing draft here — e.g. an imported draft that landed site-wide because its original course did not exist on this site. The course-specific audience options are always listed, so you no longer need to save and reopen the form to reveal them; they just require a course scope to be chosen when you save. |
 | **Visible** | When ticked, the published report appears in the listing for anyone with the `view` capability. Unticking hides it from the list (useful while refining) without deleting the underlying view or report. Authors with `viewall` and managers always see hidden views. |
-| **Name** | The title shown on the finished Report Builder report. Required. |
-| **Description** | Optional notes for yourself or other authors. |
-| **SQL (SELECT only)** | A single `SELECT` or `WITH … SELECT`. See [Writing SQL](#writing-sql). Required. |
-| **Audience** | Who can open the published report. See [Who can view the report](#who-can-view-the-report-audiences). |
 
 Two more sections appear **only after the query is published** (their fields depend on the live view's columns):
 
