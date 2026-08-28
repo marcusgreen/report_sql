@@ -338,7 +338,7 @@
         },
         {
             "name": "Capabilities by type: demonstrates the enum/dropdown filter",
-            "description": "Every Moodle capability with its access type and component. The 'captype' column has only a couple of values (read / write) on every install, so its filter becomes a dropdown; the 'capability' and 'component' columns have hundreds of values, so they stay free-text. To see it: (1) Publish this report. (2) Edit in Report Builder → Filters tab → add a filter on Captype. (3) Open report — the Captype filter is a dropdown of the actual types.",
+            "description": "Demonstrates the dropdown filter: a column with only a few distinct values gets a dropdown filter instead of a free-text box. This report lists every Moodle capability with its access type and component. The 'captype' column has only a couple of values (read / write) on every install, so its filter becomes a dropdown; the 'capability' and 'component' columns have hundreds of values, so they stay free-text. To see it: (1) Publish this report. (2) Edit in Report Builder → Filters tab → add a filter on Captype. (3) Open report — the Captype filter is a dropdown of the actual types.",
             "querysql": "SELECT\r\n    cap.id,\r\n    cap.name AS capability,\r\n    cap.captype,\r\n    cap.component\r\nFROM\r\n    {capabilities} cap\r\nORDER BY\r\n    cap.name\r\nLIMIT 500",
             "courseid": 0,
             "visible": 1,
