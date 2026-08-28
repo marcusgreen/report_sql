@@ -34,7 +34,7 @@
     * samples - Array of rows, each with:
         * index - Stable 0-based selector for import.
         * name - Sample name.
-        * description - Sample description.
+        * description - Sample description, pre-formatted safe HTML (rendered unescaped).
         * querysql - The backing SQL (shown in a collapsible preview).
         * disabled - True when the control is disabled (bulk mode, name already present).
         * checked - True when the control should start selected.
@@ -110,7 +110,7 @@
                                 <pre class="mt-1 mb-0"><code>{{querysql}}</code></pre>
                             </details>
                         </td>
-                        <td class="align-top">{{description}}</td>
+                        <td class="align-top">{{{description}}}</td>
                     </tr>
                 {{/samples}}
             </tbody>

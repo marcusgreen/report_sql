@@ -569,9 +569,24 @@ class query {
         $sql = validator::validate((string) $data->querysql);
         $now = time();
 
+        // The edit form submits the description as an editor array {text, format, itemid}. Other
+        // callers (importers, tests) may still pass a plain string. Resolve both; when an editor
+        // draft id is present, embedded files are saved once the record id is known (see the
+        // save_description_files() calls before each return below).
+        $descdraftid = null;
+        if (isset($data->description) && is_array($data->description)) {
+            $desctext   = (string) ($data->description['text'] ?? '');
+            $descformat = (int) ($data->description['format'] ?? FORMAT_HTML);
+            $descdraftid = isset($data->description['itemid']) ? (int) $data->description['itemid'] : null;
+        } else {
+            $desctext   = (string) ($data->description ?? '');
+            $descformat = (int) ($data->descriptionformat ?? FORMAT_HTML);
+        }
+
         $record = (object) [
             'name'         => (string) $data->name,
-            'description'  => (string) ($data->description ?? ''),
+            'description'  => $desctext,
+            'descriptionformat' => $descformat,
             'querysql'     => $sql,
             'courseid'     => (int) ($data->courseid ?? 0),
             'visible'      => isset($data->visible) ? (int) (bool) $data->visible : 1,
@@ -621,6 +636,7 @@ class query {
                 $record->coursecolumn = null;
                 $record->pagecoursecolumn = null;
                 $DB->update_record(self::TABLE, $record);
+                self::save_description_files((int) $record->id, $descdraftid, $desctext, $descformat);
                 self::tear_down((int) $existing->id, $existing);
                 \report_sql\event\query_updated::create_and_trigger($record->id, $record->name);
                 return $record->id;
@@ -651,6 +667,7 @@ class query {
                 self::purge_report_column((int) $existing->reportid, $record->useridcolumn);
             }
             $DB->update_record(self::TABLE, $record);
+            self::save_description_files((int) $record->id, $descdraftid, $desctext, $descformat);
             // Audience/visibility edits on an already-published report take effect immediately.
             if ($existing->status === self::STATUS_PUBLISHED && !empty($existing->reportid)) {
                 report_visibility::apply(self::get_record($record->id), (int) $existing->reportid);
@@ -663,8 +680,48 @@ class query {
         $record->status      = self::STATUS_DRAFT;
         $record->timecreated = $now;
         $newid = $DB->insert_record(self::TABLE, $record);
+        self::save_description_files($newid, $descdraftid, $desctext, $descformat);
         \report_sql\event\query_created::create_and_trigger($newid, $record->name);
         return $newid;
+    }
+
+    /**
+     * Persist images embedded in a query description.
+     *
+     * The editor uploads embedded images into a draft file area; this moves them to the query's
+     * permanent area (system context, itemid = query id) and rewrites the stored description so its
+     * embedded-file placeholder tokens resolve. No-op when the caller passed a plain-string
+     * description (no
+     * draft id) — e.g. an importer or a programmatic save.
+     *
+     * @param int $id Query id (must already exist).
+     * @param int|null $draftid Editor draft item id, or null for a non-editor caller.
+     * @param string $text Raw description text as submitted (still holds @@PLUGINFILE@@ tokens).
+     * @param int $format FORMAT_* constant for the description.
+     */
+    private static function save_description_files(int $id, ?int $draftid, string $text, int $format): void {
+        global $CFG, $DB;
+
+        if ($draftid === null) {
+            return;
+        }
+
+        // The save() method runs from entry points that may not have included the plugin's lib.php,
+        // where the shared editor-options helper lives.
+        require_once($CFG->dirroot . '/report/sql/lib.php');
+
+        $newtext = file_save_draft_area_files(
+            $draftid,
+            \context_system::instance()->id,
+            'report_sql',
+            'description',
+            $id,
+            report_sql_description_editor_options(),
+            $text
+        );
+
+        $DB->set_field(self::TABLE, 'description', $newtext, ['id' => $id]);
+        $DB->set_field(self::TABLE, 'descriptionformat', $format, ['id' => $id]);
     }
 
     /**
@@ -902,6 +959,13 @@ class query {
         $queryid = $this->id();
         $name = $this->name();
         self::tear_down($queryid, $this->record);
+        // Drop any images embedded in the description so they don't linger as orphaned files.
+        get_file_storage()->delete_area_files(
+            \context_system::instance()->id,
+            'report_sql',
+            'description',
+            $queryid
+        );
         // The query record is going away, so its view-history rows would be orphaned; drop them.
         // (Unpublish/republish keep the record and go through tear_down only, so history survives.)
         $DB->delete_records(self::TABLE_VIEW, ['queryid' => $queryid]);
@@ -919,7 +983,7 @@ class query {
      * @return int New query id.
      */
     public function duplicate(): int {
-        global $DB, $USER;
+        global $CFG, $DB, $USER;
 
         // Only the owner (or a report/sql:viewall holder — which includes site
         // admins) may copy a query, so an author cannot clone another user's
@@ -936,10 +1000,29 @@ class query {
             );
         }
 
+        require_once($CFG->dirroot . '/report/sql/lib.php');
+
+        // Clone any images embedded in the description: prepare a draft area from this query's
+        // description files (rewriting URLs back to @@PLUGINFILE@@ tokens), then save that draft
+        // against the new query id so the copy owns its own file copies rather than sharing the
+        // original's (whose @@PLUGINFILE@@ tokens point at this query's item id).
+        $context = \context_system::instance();
+        $descdraftid = 0;
+        $desctext = file_prepare_draft_area(
+            $descdraftid,
+            $context->id,
+            'report_sql',
+            'description',
+            $this->id(),
+            report_sql_description_editor_options(),
+            (string) ($this->record->description ?? '')
+        );
+
         $now = time();
         $copy = (object) [
             'name'         => get_string('copyof', 'report_sql', $this->name()),
-            'description'  => (string) ($this->record->description ?? ''),
+            'description'  => $desctext,
+            'descriptionformat' => (int) ($this->record->descriptionformat ?? FORMAT_HTML),
             'querysql'     => $this->sql(),
             'courseid'     => $this->courseid(),
             'visible'      => (int) ($this->record->visible ?? 1),
@@ -954,6 +1037,7 @@ class query {
         ];
 
         $newid = $DB->insert_record(self::TABLE, $copy);
+        self::save_description_files($newid, $descdraftid, $desctext, (int) $copy->descriptionformat);
         \report_sql\event\query_created::create_and_trigger($newid, $copy->name);
         return $newid;
     }

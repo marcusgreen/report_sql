@@ -26,7 +26,7 @@ defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'report_sql';
 $plugin->release   = '0.1.21';
-$plugin->version   = 2026082700;
+$plugin->version   = 2026082800;
 $plugin->requires  = 2024100700; // Moodle 4.5 LTS — the Reportbuilder API this plugin uses is stable from 4.5.
 $plugin->maturity  = MATURITY_ALPHA;
 $plugin->supported = [405, 502];

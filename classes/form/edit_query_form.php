@@ -118,13 +118,17 @@ class edit_query_form extends moodleform {
 
         // Description sits just above the audience header — a free-text note about the report,
         // logically grouped with its scope/visibility settings rather than the SQL editor above.
+        // Rich-text description using the user's preferred editor; accepts embedded images (served
+        // by report_sql_pluginfile()). The editor element's value is an array {text, format, itemid}
+        // — file prepare/save is handled in edit.php (load) and query::save() (store).
         $mform->addElement(
-            'textarea',
+            'editor',
             'description',
             get_string('description', 'report_sql'),
-            ['rows' => 3, 'cols' => 80]
+            ['rows' => 7],
+            report_sql_description_editor_options()
         );
-        $mform->setType('description', PARAM_TEXT);
+        $mform->setType('description', PARAM_RAW);
 
         $this->add_audience_elements($mform);
 

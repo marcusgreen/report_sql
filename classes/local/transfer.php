@@ -76,6 +76,9 @@ class transfer {
         return [
             'name'        => (string) $rec->name,
             'description' => (string) ($rec->description ?? ''),
+            // The format travels; any embedded image *files* do not (JSON is text-only), so a
+            // rich description imports as prose with its @@PLUGINFILE@@ image refs unresolved.
+            'descriptionformat' => (int) ($rec->descriptionformat ?? FORMAT_HTML),
             'querysql'    => (string) $rec->querysql,
             'courseid'    => (int) ($rec->courseid ?? 0),
             'visible'     => (int) ($rec->visible ?? 1),
@@ -110,6 +113,7 @@ class transfer {
             $sources[] = [
                 'name'        => (string) $raw['name'],
                 'description' => (string) ($raw['description'] ?? ''),
+                'descriptionformat' => (int) ($raw['descriptionformat'] ?? FORMAT_HTML),
                 'querysql'    => (string) $raw['querysql'],
                 'courseid'    => (int) ($raw['courseid'] ?? 0),
                 'visible'     => (int) ($raw['visible'] ?? 1),
@@ -171,6 +175,7 @@ class transfer {
             $record = (object) [
                 'name'         => $name,
                 'description'  => (string) ($source['description'] ?? ''),
+                'descriptionformat' => (int) ($source['descriptionformat'] ?? FORMAT_HTML),
                 'querysql'     => $sql,
                 'courseid'     => $courseid,
                 'visible'      => (int) ($source['visible'] ?? 1),

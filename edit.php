@@ -162,6 +162,24 @@ if ($aisqlchatavailable && $aiaction === 'generate' && $aiquestion !== '') {
 }
 
 if ($formdefaults !== null) {
+    // Prepare the description editor: copy any embedded images into a draft file area and wrap the
+    // stored text + format into the {text, format, itemid} value the editor element expects. Uses
+    // system context and itemid = query id (null for a new draft), matching query::save().
+    $descdraftid = file_get_submitted_draft_itemid('description');
+    $desctext = file_prepare_draft_area(
+        $descdraftid,
+        context_system::instance()->id,
+        'report_sql',
+        'description',
+        $existing ? (int) $existing->id : null,
+        report_sql_description_editor_options(),
+        (string) ($formdefaults->description ?? '')
+    );
+    $formdefaults->description = [
+        'text'   => $desctext,
+        'format' => (int) ($formdefaults->descriptionformat ?? FORMAT_HTML),
+        'itemid' => $descdraftid,
+    ];
     $mform->set_data($formdefaults);
 }
 
