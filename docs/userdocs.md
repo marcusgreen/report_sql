@@ -25,18 +25,19 @@ Everything starts from the **Saved SQL reports** list (*Site admin → Reports �
 9. [Publishing and building the report](#publishing-and-building-the-report)
 10. [Who can view the report (audiences)](#who-can-view-the-report-audiences)
 11. [Per-user filter](#per-user-filter)
-12. [Charts](#charts)
-13. [Emailing reports on a schedule](#emailing-reports-on-a-schedule)
-14. [Showing a report on a page (block and filter)](#showing-a-report-on-a-page-block-and-filter)
-15. [Managing report views (list page)](#managing-report-views-list-page)
-16. [Export and import](#export-and-import)
-17. [Importing from other SQL report plugins](#importing-from-other-sql-report-plugins)
-18. [Sample report views](#sample-report-views)
-19. [Validation and error messages](#validation-and-error-messages)
-20. [Admin settings](#admin-settings)
-21. [Database privilege check](#database-privilege-check)
-22. [Troubleshooting](#troubleshooting)
-23. [How this compares to other SQL report plugins](#how-this-compares-to-other-sql-report-plugins)
+12. [Dropdown filters](#dropdown-filters)
+13. [Charts](#charts)
+14. [Emailing reports on a schedule](#emailing-reports-on-a-schedule)
+15. [Showing a report on a page (block and filter)](#showing-a-report-on-a-page-block-and-filter)
+16. [Managing report views (list page)](#managing-report-views-list-page)
+17. [Export and import](#export-and-import)
+18. [Importing from other SQL report plugins](#importing-from-other-sql-report-plugins)
+19. [Sample report views](#sample-report-views)
+20. [Validation and error messages](#validation-and-error-messages)
+21. [Admin settings](#admin-settings)
+22. [Database privilege check](#database-privilege-check)
+23. [Troubleshooting](#troubleshooting)
+24. [How this compares to other SQL report plugins](#how-this-compares-to-other-sql-report-plugins)
 
 ---
 
@@ -579,6 +580,21 @@ The chosen column is hidden from all output (its value is always the viewer's ow
 
 ---
 
+## Dropdown filters
+
+When you add a filter in Report Builder, a text column normally gets a **free-text** box — the viewer types a value to match. For a column with only a **small, fixed set of values** (a status, a course format, an auth method, a country code), a **dropdown** of the actual values is friendlier and avoids typos.
+
+SQL Report sets this up **automatically at publish time**. For each plain-text column it runs a `COUNT(DISTINCT …)` on the view, and if the number of distinct values is **between 2 and the *Dropdown filter threshold* setting** (default 30), that column's Report Builder filter is rendered as a **SELECT dropdown** instead of a free-text box. Columns with more distinct values than the threshold stay free-text.
+
+- **Values are read live.** The dropdown's options are fetched from the view each time the filter is drawn, so values added *after* publishing still appear — you don't need to re-publish.
+- **The column still filters on the raw value.** The dropdown just lists the real column values; sorting and matching are unchanged.
+- **What is skipped.** Date columns (`%%TIMESTAMP()%%`) and text-case columns (`%%CASE()%%`) are never turned into dropdowns. A very large report is also skipped — see the *Dropdown filter row ceiling* setting — so publishing a big view doesn't pay for a per-column distinct scan.
+- **Turning it off.** Set the **Dropdown filter threshold** to `0` (Admin settings) and every text column stays free-text.
+
+> The **"Courses by format"** sample report view demonstrates this: its `format` column (a handful of values like *topics*, *weekly*, *social*) becomes a dropdown, while the high-cardinality course-name column stays free-text. See [Sample report views](#sample-report-views).
+
+---
+
 ## Charts
 
 *(Appears only after publishing.)* Add an optional chart on top of the report data. The **Chart settings** section of the edit form controls it:
@@ -862,6 +878,8 @@ With thanks to **Gemma Lesterhuis — CEO, LTNC BV** for suggestions and feedbac
 With thanks to **Guy Thomas** for suggestions relating to test query.
 
 With thanks to **Zeid Fanous** for suggestions and feedback.
+
+With thanks to **Jakub Chromec** for testing, feedback and feature suggestions.
 
 ---
 
