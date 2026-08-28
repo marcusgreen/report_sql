@@ -64,29 +64,21 @@
     word-break: break-word;
 }
 
-/* Bundled-samples picker (samples.php). Fix the column widths so toggling a row's "Preview SQL"
-   accordion never re-lays-out the table — without table-layout:fixed the browser sizes columns to
-   content and ignores the <col> widths, so opening a wide query would widen the Name column and
-   shift every other cell (see issue #17). align-top on the cells keeps the litmus-test arrow from
-   moving vertically; fixed widths keep it from moving horizontally. */
-.rs-samples-table {
-    table-layout: fixed;
+/* Bundled-samples picker (samples.php). Each sample is a stacked card: the selection control on the
+   left, then name / description / SQL-accordion in a single full-width column (issue #21). This gives
+   a large query the whole card width to preview, instead of the old table's cramped middle column. */
+.rs-sample-name {
+    display: block;
+    font-size: 1.15rem;
+    font-weight: 600;
 }
 
-.rs-samples-col-select {
-    width: 8%;
+.rs-sample-desc {
+    font-size: 0.95rem;
 }
 
-.rs-samples-col-name {
-    width: 42%;
-}
-
-.rs-samples-col-desc {
-    width: 50%;
-}
-
-/* Keep a wide SQL preview inside its cell: it scrolls rather than stretching the fixed-width table. */
-.rs-samples-table pre {
+/* Keep a wide SQL preview inside the card: it scrolls rather than stretching the card. */
+.rs-sample-sql {
     max-width: 100%;
     overflow: auto;
     white-space: pre-wrap;
