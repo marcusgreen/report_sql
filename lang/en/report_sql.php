@@ -69,6 +69,7 @@ $string['audiencetype_help'] = 'Controls who can open the published Report Build
 
 You can refine the audience further on the Audiences tab in Report Builder, but re-publishing the report resets it to this choice.';
 $string['bulkactions'] = 'Bulk actions';
+$string['cachedef_schema'] = 'Database schema and foreign-key map for editor autocomplete';
 $string['chartbar'] = 'Bar chart';
 $string['chartcolumn'] = 'Chart';
 $string['chartdatalabels'] = 'Show value labels';
