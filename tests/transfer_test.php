@@ -84,8 +84,8 @@ final class transfer_test extends \advanced_testcase {
     public function test_count_samples_matches_shipped_file(): void {
         $this->resetAfterTest();
 
-        // The bundled file ships 26 sample report views.
-        $this->assertSame(26, transfer::count_samples());
+        // The bundled file ships 27 sample report views.
+        $this->assertSame(27, transfer::count_samples());
     }
 
     public function test_author_without_siteconfig_can_import_sample(): void {
