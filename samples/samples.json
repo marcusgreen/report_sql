@@ -337,9 +337,9 @@
             }
         },
         {
-            "name": "Courses by format: demonstrates the enum/dropdown filter",
-            "description": "Every course with its format and category. The 'format' column is plain text with only a handful of distinct values (topics, weekly, social, singleactivity, ...), so at publish time report_sql probes COUNT(DISTINCT format) on the view and — when it lands between 2 and the report_sql/enumfilterthreshold setting (default 30) — renders the Report Builder filter as a SELECT dropdown instead of a free-text box. Options are fetched at filter-render time, so values added after publish still appear. High-cardinality columns (coursename) stay free-text; set enumfilterthreshold to 0 to disable the feature. To see it: import and Publish, then 'Edit in Report Builder' → Filters tab → add a filter on the 'Format' column (not 'Coursename'). 'Open report' — Format now filters via a dropdown of the actual formats.",
-            "querysql": "SELECT\r\n    c.id AS courseid,\r\n    c.fullname AS coursename,\r\n    c.format AS format,\r\n    cc.name AS category\r\nFROM\r\n    {course} c\r\n    JOIN {course_categories} cc ON cc.id = c.category\r\nWHERE\r\n    c.id > 1\r\nLIMIT 200",
+            "name": "Capabilities by type: demonstrates the enum/dropdown filter",
+            "description": "Every Moodle capability with its access type and owning component. The 'captype' column is plain text with only a couple of distinct values ('read' / 'write') — true on every Moodle install regardless of content — so at publish time report_sql probes COUNT(DISTINCT captype) on the view and, because it lands between 2 and the report_sql/enumfilterthreshold setting (default 30), renders the Report Builder filter as a SELECT dropdown instead of a free-text box. Options are fetched at filter-render time. High-cardinality columns ('capability' and 'component', hundreds of distinct values) stay free-text; set enumfilterthreshold to 0 to disable the feature. To see it: import and Publish, then 'Edit in Report Builder' → Filters tab → add a filter on the 'Captype' column (not 'Capability' or 'Component'). 'Open report' — Captype now filters via a dropdown of the actual types.",
+            "querysql": "SELECT\r\n    cap.id,\r\n    cap.name AS capability,\r\n    cap.captype,\r\n    cap.component\r\nFROM\r\n    {capabilities} cap\r\nORDER BY\r\n    cap.name\r\nLIMIT 500",
             "courseid": 0,
             "visible": 1,
             "chartmeta": {

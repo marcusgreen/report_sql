@@ -591,7 +591,7 @@ SQL Report sets this up **automatically at publish time**. For each plain-text c
 - **What is skipped.** Date columns (`%%TIMESTAMP()%%`) and text-case columns (`%%CASE()%%`) are never turned into dropdowns. A very large report is also skipped — see the *Dropdown filter row ceiling* setting — so publishing a big view doesn't pay for a per-column distinct scan.
 - **Turning it off.** Set the **Dropdown filter threshold** to `0` (Admin settings) and every text column stays free-text.
 
-> The **"Courses by format"** sample report view demonstrates this: its `format` column (a handful of values like *topics*, *weekly*, *social*) becomes a dropdown, while the high-cardinality course-name column stays free-text. See [Sample report views](#sample-report-views).
+> The **"Capabilities by type"** sample report view demonstrates this: its `captype` column (just `read` / `write` — present on every Moodle install) becomes a dropdown, while the high-cardinality `capability` and `component` columns stay free-text. See [Sample report views](#sample-report-views).
 
 ---
 
