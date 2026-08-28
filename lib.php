@@ -39,6 +39,77 @@ function report_sql_require_enabled(): void {
 }
 
 /**
+ * Editor options for the query description field.
+ *
+ * Single source of truth shared by the edit form (element definition + file prepare) and
+ * {@see query::save()} (file save). The description is a rich-text field that accepts embedded
+ * images only. Its file area lives at system context (constant regardless of the query's course
+ * scope), so re-scoping a query never orphans its embedded images.
+ *
+ * @return array
+ */
+function report_sql_description_editor_options(): array {
+    return [
+        'maxfiles'       => EDITOR_UNLIMITED_FILES,
+        'maxbytes'       => 0,
+        'trusttext'      => false,
+        'subdirs'        => 0,
+        'accepted_types' => ['web_image'],
+        'context'        => context_system::instance(),
+    ];
+}
+
+/**
+ * Serve images embedded in a query description.
+ *
+ * The description file area is at system context, itemid = query id. Access mirrors who may see the
+ * query in the plugin UI: {@see query::visible_to_current_user()} is the single source of truth, so
+ * an embedded image is served only to a user who could open the query whose description holds it.
+ *
+ * @param stdClass $course
+ * @param stdClass $cm
+ * @param context $context
+ * @param string $filearea
+ * @param array $args First element is the query id (itemid), remainder is the file path + name.
+ * @param bool $forcedownload
+ * @param array $options
+ * @return bool False to fall through to a 404.
+ */
+function report_sql_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []): bool {
+    global $DB;
+
+    if ($context->contextlevel != CONTEXT_SYSTEM || $filearea !== 'description') {
+        return false;
+    }
+
+    require_login();
+
+    $itemid = (int) array_shift($args);
+    $query = $DB->get_record(\report_sql\local\query::TABLE, ['id' => $itemid]);
+    if (!$query) {
+        return false;
+    }
+
+    // Reuse the plugin's own visibility rule: the id must be among the queries this user may see.
+    $visible = \report_sql\local\query::visible_to_current_user((int) $query->courseid);
+    if (!array_key_exists($itemid, $visible)) {
+        return false;
+    }
+
+    $filename = array_pop($args);
+    $filepath = $args ? '/' . implode('/', $args) . '/' : '/';
+
+    $fs = get_file_storage();
+    $file = $fs->get_file($context->id, 'report_sql', 'description', $itemid, $filepath, $filename);
+    if (!$file || $file->is_directory()) {
+        return false;
+    }
+
+    send_stored_file($file, null, 0, $forcedownload, $options);
+    return true;
+}
+
+/**
  * Legacy global navigation hook. Kept for any theme that still renders the
  * flat navigation drawer; Boost (Moodle 4.x+) does not.
  *

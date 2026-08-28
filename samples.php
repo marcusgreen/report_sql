@@ -177,7 +177,7 @@ foreach ($sources as $source) {
         'index'       => $source['index'],
         'name'        => $source['name'],
         'nameicon'    => $nameicon,
-        'description' => $source['description'],
+        'description' => format_text($source['description'], FORMAT_HTML, ['para' => false]),
         'querysql'    => $source['querysql'],
         'duplicate'   => $isdup,
         'disabled'    => $disabled,
