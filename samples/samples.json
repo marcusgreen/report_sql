@@ -338,7 +338,7 @@
         },
         {
             "name": "Capabilities by type: demonstrates the enum/dropdown filter",
-            "description": "Every Moodle capability with its access type and owning component. The 'captype' column is plain text with only a couple of distinct values ('read' / 'write') — true on every Moodle install regardless of content — so at publish time report_sql probes COUNT(DISTINCT captype) on the view and, because it lands between 2 and the report_sql/enumfilterthreshold setting (default 30), renders the Report Builder filter as a SELECT dropdown instead of a free-text box. Options are fetched at filter-render time. High-cardinality columns ('capability' and 'component', hundreds of distinct values) stay free-text; set enumfilterthreshold to 0 to disable the feature. To see it: import and Publish, then 'Edit in Report Builder' → Filters tab → add a filter on the 'Captype' column (not 'Capability' or 'Component'). 'Open report' — Captype now filters via a dropdown of the actual types.",
+            "description": "Every Moodle capability with its access type and component. The 'captype' column has only a couple of values (read / write) on every install, so its filter becomes a dropdown; the 'capability' and 'component' columns have hundreds of values, so they stay free-text. To see it: (1) Publish this report. (2) Edit in Report Builder → Filters tab → add a filter on Captype. (3) Open report — the Captype filter is a dropdown of the actual types.",
             "querysql": "SELECT\r\n    cap.id,\r\n    cap.name AS capability,\r\n    cap.captype,\r\n    cap.component\r\nFROM\r\n    {capabilities} cap\r\nORDER BY\r\n    cap.name\r\nLIMIT 500",
             "courseid": 0,
             "visible": 1,
