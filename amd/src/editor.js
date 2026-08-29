@@ -155,8 +155,10 @@ const buildEditor = (textarea, schema, fkMap) => {
         };
     }
 
+    // Grow with content (no fixed height) but never shrink below the initial box; the scroller
+    // still scrolls horizontally for long unwrapped tokens.
     const heightTheme = EditorView.theme({
-        "&": {height: "260px"},
+        "&": {minHeight: "260px"},
         ".cm-scroller": {overflow: "auto"},
     });
 

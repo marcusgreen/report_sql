@@ -1,3 +1,13 @@
+/* Auto-grow the plain SQL textarea (syntaxhighlight off — the CodeMirror path sizes itself) to fit
+   its content, so a long query is fully visible without an inner scrollbar. field-sizing is
+   progressive: browsers without it fall back to the element's rows=10. min-height keeps the empty
+   box a comfortable size; resize:vertical still lets the author drag it manually. */
+.report-sql-sql {
+    field-sizing: content;
+    min-height: 14rem;
+    resize: vertical;
+}
+
 /* Cap the query Name column so long names wrap within a bounded width instead of stretching the
    column (the RB system report has no fixed column widths; main used a 33% html_table size). */
 .rs-query-name {
