@@ -48,6 +48,17 @@ class edit_query_form extends moodleform {
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
 
+        // Rich-text description. Value is an array {text, format, itemid}; file prepare/save
+        // handled in edit.php (load) and query::save() (store).
+        $mform->addElement(
+            'editor',
+            'description',
+            get_string('description', 'report_sql'),
+            ['rows' => 7],
+            report_sql_description_editor_options()
+        );
+        $mform->setType('description', PARAM_RAW);
+
         if (get_config('report_sql', 'syntaxhighlight')) {
             // The editor fetches the (large) schema + FK map lazily over AJAX; see
             // report_sql\external\get_schema and report_sql\local\schema.
@@ -115,20 +126,6 @@ class edit_query_form extends moodleform {
             'init',
             ['rs-preview-btn', 'id_querysql', 'id_courseid', 'rs-preview', 'rs-preview-details']
         );
-
-        // Description sits just above the audience header — a free-text note about the report,
-        // logically grouped with its scope/visibility settings rather than the SQL editor above.
-        // Rich-text description using the user's preferred editor; accepts embedded images (served
-        // by report_sql_pluginfile()). The editor element's value is an array {text, format, itemid}
-        // — file prepare/save is handled in edit.php (load) and query::save() (store).
-        $mform->addElement(
-            'editor',
-            'description',
-            get_string('description', 'report_sql'),
-            ['rows' => 7],
-            report_sql_description_editor_options()
-        );
-        $mform->setType('description', PARAM_RAW);
 
         $this->add_audience_elements($mform);
 
