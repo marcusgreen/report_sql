@@ -233,6 +233,27 @@ Below the SQL box is a **Test query** button. It runs your SQL against the datab
 
 The button is **advisory only** — it never blocks saving or publishing.
 
+### The **Preview** button
+
+Next to **Test query** is a **Preview** button. It renders the current (unsaved) SQL as a live
+Report Builder table in the edit form — the same rendering the published report uses — so you see
+real columns and rows **before** saving or publishing.
+
+What it does:
+
+- Builds a **private, throwaway view**, renders its **first page** of rows, then drops it. Nothing is saved.
+- Rows are **scoped to you** — your per-user / per-course filters apply.
+- Columns show their configured formatting (`%%TIMESTAMP()%%`, `%%CASE()%%`, …); rows follow the query's `ORDER BY`.
+- Shows the same **row count + performance warnings** as Test query above the table.
+- If a **chart** is configured, draws it above the table off the same data.
+- Opens in a collapsible panel; click **Preview** again to refresh after edits.
+
+**Errors surface inline.** A validation failure, an unaliased/duplicate column, or a DB error shows
+in place — and on a DB error the **compiled SQL** (placeholders resolved) is shown beside the
+message, so you can line its line/column numbers up against what actually ran.
+
+Like Test query, Preview is **advisory** — it never blocks saving or publishing.
+
 ---
 
 ## Placeholders
