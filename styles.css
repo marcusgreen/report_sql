@@ -3,6 +3,7 @@
    progressive: browsers without it fall back to the element's rows=10. min-height keeps the empty
    box a comfortable size; resize:vertical still lets the author drag it manually. */
 .report-sql-sql {
+    /* stylelint-disable-next-line property-no-unknown, csstree/validator -- field-sizing is valid modern CSS, dict is stale. */
     field-sizing: content;
     min-height: 14rem;
     resize: vertical;
