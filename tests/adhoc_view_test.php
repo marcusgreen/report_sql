@@ -64,4 +64,45 @@ final class adhoc_view_test extends \advanced_testcase {
     public function test_strftime_format_is_case_insensitive(): void {
         $this->assertSame('%d/%m/%Y', $this->map('DD/MM/YYYY'));
     }
+
+    /**
+     * render_link() wraps the value in a site-relative <a href>, substituting the url-encoded value
+     * into the path's {} slot, escaping both the URL and the visible text, and returning nothing for
+     * an empty value.
+     */
+    public function test_render_link_builds_escaped_site_relative_link(): void {
+        global $CFG;
+        $this->resetAfterTest();
+
+        $html = \report_sql\reportbuilder\local\entities\adhoc_view::render_link('42', '/user/view.php?id={}');
+        $this->assertStringContainsString('href="' . $CFG->wwwroot . '/user/view.php?id=42"', $html);
+        $this->assertStringContainsString('>42</a>', $html);
+
+        // The visible text is escaped; the value is url-encoded into the path.
+        $xss = \report_sql\reportbuilder\local\entities\adhoc_view::render_link('a<b>', '/x.php?q={}');
+        $this->assertStringNotContainsString('<b>', $xss);
+        $this->assertStringContainsString('a%3Cb%3E', $xss);
+
+        // An empty value renders no dangling link.
+        $this->assertSame('', \report_sql\reportbuilder\local\entities\adhoc_view::render_link('', '/x.php?id={}'));
+    }
+
+    /**
+     * render_link()'s optional third argument (the 3-arg %%LINK(display, keycol, 'path')%% form) fills
+     * the {} slot from the key rather than the visible text, so the cell shows one value and links on
+     * another. The empty-value guard still tests the visible text, not the key.
+     */
+    public function test_render_link_keys_link_on_separate_value(): void {
+        global $CFG;
+        $this->resetAfterTest();
+
+        $html = \report_sql\reportbuilder\local\entities\adhoc_view::render_link(
+            'Ada Lovelace', '/user/view.php?id={}', '42');
+        $this->assertStringContainsString('href="' . $CFG->wwwroot . '/user/view.php?id=42"', $html);
+        $this->assertStringContainsString('>Ada Lovelace</a>', $html);
+
+        // Empty visible text renders nothing even when a key is supplied.
+        $this->assertSame('', \report_sql\reportbuilder\local\entities\adhoc_view::render_link(
+            '', '/user/view.php?id={}', '42'));
+    }
 }

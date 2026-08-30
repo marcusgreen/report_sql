@@ -643,6 +643,7 @@ const TOKENS = [
     {label: '%%TIMESTAMP()%%', key: 'tokenhinttimestamp', caret: 12},
     {label: '%%EPOCH()%%', key: 'tokenhintepoch', caret: 8},
     {label: '%%CASE()%%', key: 'tokenhintcase', caret: 7},
+    {label: '%%LINK()%%', key: 'tokenhintlink', caret: 7},
 ];
 
 /**
