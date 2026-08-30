@@ -64,6 +64,53 @@ final class transfer_test extends \advanced_testcase {
         $this->assertSame(0, (int) $rec->courseid);
     }
 
+    public function test_pagecoursecolumn_round_trips_export_to_import(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // Save a query carrying a page-course column, then export it.
+        $rec = (object) [
+            'name'         => 'Scoped source',
+            'description'  => '',
+            'querysql'     => 'SELECT id, courseid FROM {course}',
+            'courseid'     => 0,
+            'visible'      => 1,
+            'pagecoursecolumn' => 'courseid',
+            'ownerid'      => 2,
+            'status'       => query::STATUS_DRAFT,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ];
+        $srcid = $DB->insert_record(query::TABLE, $rec);
+
+        $payload = transfer::export([$srcid]);
+        $this->assertSame('courseid', $payload['sources'][0]['pagecoursecolumn']);
+
+        // Drop the seed so the re-imported draft (same name) is the only match below.
+        $DB->delete_records(query::TABLE, ['id' => $srcid]);
+
+        // Parse the encoded payload back and import: the page-course column survives onto the draft.
+        $sources = transfer::parse(json_encode($payload));
+        $this->assertSame('courseid', $sources[0]['pagecoursecolumn']);
+
+        transfer::import($sources, [0]);
+        $imported = $DB->get_record(query::TABLE, ['name' => 'Scoped source', 'status' => query::STATUS_DRAFT],
+            '*', MUST_EXIST);
+        $this->assertSame('courseid', $imported->pagecoursecolumn);
+    }
+
+    public function test_import_omitted_pagecoursecolumn_is_null(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // A source without the field (e.g. an older export) imports with a NULL page-course column.
+        transfer::import([$this->source(['name' => 'Unscoped'])], [0]);
+        $rec = $DB->get_record(query::TABLE, ['name' => 'Unscoped'], '*', MUST_EXIST);
+        $this->assertNull($rec->pagecoursecolumn);
+    }
+
     public function test_import_preserves_existing_courseid(): void {
         global $DB;
         $this->resetAfterTest();

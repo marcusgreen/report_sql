@@ -380,15 +380,84 @@ class query {
      * @return array<int, array<string, mixed>> Result rows as associative arrays.
      */
     public function fetch_rows_for_viewer(int $rowlimit = 0, int $pagecourseid = 0): array {
+        global $DB;
+
+        $filter = $this->build_viewer_filter($pagecourseid);
+        if ($filter === null) {
+            return [];
+        }
+        [$viewname, $select, $params, $visiblemeta] = $filter;
+
+        $fields = implode(', ', array_keys($visiblemeta));
+        $limit  = $rowlimit > 0 ? min(5000, $rowlimit) : 0;
+
+        $rows = [];
+        try {
+            $rs = $DB->get_recordset_select($viewname, $select, $params, '', $fields, 0, $limit);
+            foreach ($rs as $row) {
+                $rows[] = (array) $row;
+            }
+            $rs->close();
+        } catch (\dml_exception $e) {
+            // Never surface raw DB errors to ordinary viewers (they can leak SQL/table names).
+            debugging($e->getMessage(), DEBUG_DEVELOPER);
+            throw new \moodle_exception('errchartdata', 'report_sql');
+        }
+        return $rows;
+    }
+
+    /**
+     * Total number of rows the current viewer would see, with the same per-user / teacher-course /
+     * page-course scoping as {@see fetch_rows_for_viewer()} but no row limit. Lets a caller show an
+     * accurate "N rows" total (and decide whether a "show all" affordance is worth offering) without
+     * fetching every row. Shares the exact filter builder as the fetch path so the count can never
+     * disagree with what the table shows.
+     *
+     * @param int $pagecourseid Course id of the page hosting the block; 0 disables the page-course filter.
+     * @return int Row count (0 when the query is not published / has no columns).
+     */
+    public function count_rows_for_viewer(int $pagecourseid = 0): int {
+        global $DB;
+
+        $filter = $this->build_viewer_filter($pagecourseid);
+        if ($filter === null) {
+            return 0;
+        }
+        [$viewname, $select, $params] = $filter;
+
+        try {
+            return $DB->count_records_select($viewname, $select, $params);
+        } catch (\dml_exception $e) {
+            debugging($e->getMessage(), DEBUG_DEVELOPER);
+            throw new \moodle_exception('errchartdata', 'report_sql');
+        }
+    }
+
+    /**
+     * Build the viewer-scoped WHERE clause shared by {@see fetch_rows_for_viewer()} and
+     * {@see count_rows_for_viewer()}. Applies the per-user (useridcolumn), teacher-course
+     * (coursecolumn) and page-course (pagecoursecolumn) filters. A filter naming a missing column
+     * fails closed (throws). Does not check view access — call {@see current_user_can_view_report()}
+     * first.
+     *
+     * The per-user and page-course columns are stripped from the returned "visible" meta (their value
+     * is constant once filtered), so the fetch path selects only meaningful columns; the count path
+     * ignores the meta and uses just the WHERE.
+     *
+     * @param int $pagecourseid Course id of the page hosting the block; 0 disables the page-course filter.
+     * @return array{0:string,1:string,2:array<string,mixed>,3:array<string,mixed>}|null
+     *         [$viewname, $select, $params, $visiblemeta], or null when unpublished / no columns.
+     */
+    private function build_viewer_filter(int $pagecourseid = 0): ?array {
         global $DB, $USER;
 
         $rec = $this->record();
         if ($rec->status !== self::STATUS_PUBLISHED || empty($rec->viewname)) {
-            return [];
+            return null;
         }
         $meta = $this->columns_meta();
         if (!$meta) {
-            return [];
+            return null;
         }
 
         $wheres = [];
@@ -443,22 +512,7 @@ class query {
         }
 
         $select = $wheres ? implode(' AND ', $wheres) : '';
-        $fields = implode(', ', array_keys($meta));
-        $limit  = $rowlimit > 0 ? min(5000, $rowlimit) : 0;
-
-        $rows = [];
-        try {
-            $rs = $DB->get_recordset_select($rec->viewname, $select, $params, '', $fields, 0, $limit);
-            foreach ($rs as $row) {
-                $rows[] = (array) $row;
-            }
-            $rs->close();
-        } catch (\dml_exception $e) {
-            // Never surface raw DB errors to ordinary viewers (they can leak SQL/table names).
-            debugging($e->getMessage(), DEBUG_DEVELOPER);
-            throw new \moodle_exception('errchartdata', 'report_sql');
-        }
-        return $rows;
+        return [$rec->viewname, $select, $params, $meta];
     }
 
     /**

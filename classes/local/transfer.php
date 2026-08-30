@@ -83,6 +83,10 @@ class transfer {
             'courseid'    => (int) ($rec->courseid ?? 0),
             'visible'     => (int) ($rec->visible ?? 1),
             'chartmeta'   => $rec->chartmeta ? json_decode($rec->chartmeta, true) : null,
+            // The page-course filter column travels so a shared/sample query keeps its per-course
+            // block scoping. It names an output column, so it stays valid across sites (unlike the
+            // courseid, which is site-specific). Empty when the query has no page-course scoping.
+            'pagecoursecolumn' => (string) ($rec->pagecoursecolumn ?? ''),
         ];
     }
 
@@ -119,6 +123,7 @@ class transfer {
                 'visible'     => (int) ($raw['visible'] ?? 1),
                 'chartmeta'   => isset($raw['chartmeta']) && is_array($raw['chartmeta'])
                     ? $raw['chartmeta'] : null,
+                'pagecoursecolumn' => clean_param((string) ($raw['pagecoursecolumn'] ?? ''), PARAM_ALPHANUMEXT),
             ];
         }
         return $sources;
@@ -180,6 +185,10 @@ class transfer {
                 'courseid'     => $courseid,
                 'visible'      => (int) ($source['visible'] ?? 1),
                 'chartmeta'    => !empty($source['chartmeta']) ? json_encode($source['chartmeta']) : null,
+                // Page-course column names an output column of this query's SQL; if the SQL was
+                // rewritten to no longer produce it, the draft's owner can clear it in the edit form
+                // and publish/fetch fails closed until then. Empty string stores as NULL (unscoped).
+                'pagecoursecolumn' => ($source['pagecoursecolumn'] ?? '') !== '' ? $source['pagecoursecolumn'] : null,
                 'ownerid'      => (int) $USER->id,
                 'status'       => query::STATUS_DRAFT,
                 'viewname'     => null,

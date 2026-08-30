@@ -92,9 +92,10 @@
         {
             "name": "Line graph of log writes per day",
             "description": "Report over logstore_standard_log.",
-            "querysql": "SELECT userid, %%TIMESTAMP(FLOOR(timecreated / 86400) * 86400, dd/mm/yyyy)%% AS day, COUNT(*) AS writes\r\nFROM {logstore_standard_log}\r\nGROUP BY userid, FLOOR(timecreated / 86400) * 86400\r\nORDER BY userid, day",
+            "querysql": "SELECT userid, courseid, %%TIMESTAMP(FLOOR(timecreated / 86400) * 86400, dd/mm/yyyy)%% AS day, COUNT(*) AS writes\r\nFROM {logstore_standard_log}\r\nGROUP BY userid, courseid, FLOOR(timecreated / 86400) * 86400\r\nORDER BY userid, day",
             "courseid": 0,
             "visible": 1,
+            "pagecoursecolumn": "courseid",
             "chartmeta": {
                 "type": "line",
                 "xcol": "day",
