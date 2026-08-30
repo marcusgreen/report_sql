@@ -95,8 +95,12 @@ final class transfer_test extends \advanced_testcase {
         $this->assertSame('courseid', $sources[0]['pagecoursecolumn']);
 
         transfer::import($sources, [0]);
-        $imported = $DB->get_record(query::TABLE, ['name' => 'Scoped source', 'status' => query::STATUS_DRAFT],
-            '*', MUST_EXIST);
+        $imported = $DB->get_record(
+            query::TABLE,
+            ['name' => 'Scoped source', 'status' => query::STATUS_DRAFT],
+            '*',
+            MUST_EXIST
+        );
         $this->assertSame('courseid', $imported->pagecoursecolumn);
     }
 
