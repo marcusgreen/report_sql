@@ -416,6 +416,36 @@ final class query_test extends \advanced_testcase {
         $this->assertNotSame($other->shortname, $rows[0]['shortname']);
     }
 
+    public function test_count_rows_for_viewer_matches_fetch_and_scopes_to_page_course(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $gen      = $this->getDataGenerator();
+        $oncourse = $gen->create_course();
+        $gen->create_course();
+
+        $sql = 'SELECT id AS courseid, shortname FROM {course}';
+        $id  = query::save($this->formdata(['querysql' => $sql]));
+        query::get($id)->publish();
+        query::save($this->formdata(['id' => $id, 'querysql' => $sql, 'pagecoursecolumn' => 'courseid']));
+
+        // Un-scoped: the count equals the full fetched row count (site + both courses).
+        $all = query::get($id)->fetch_rows_for_viewer(0, 0);
+        $this->assertSame(count($all), query::get($id)->count_rows_for_viewer(0));
+
+        // Page-course scoped: count follows the same filter as fetch (one course).
+        $this->assertSame(1, query::get($id)->count_rows_for_viewer((int) $oncourse->id));
+    }
+
+    public function test_count_rows_for_viewer_zero_when_unpublished(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $id = query::save($this->formdata(['querysql' => 'SELECT id FROM {user}']));
+        // Draft (never published): no view to count.
+        $this->assertSame(0, query::get($id)->count_rows_for_viewer());
+    }
+
     public function test_fetch_rows_for_viewer_page_course_zero_is_unfiltered(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
