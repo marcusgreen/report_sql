@@ -64,6 +64,23 @@ final class transfer_test extends \advanced_testcase {
         $this->assertSame(0, (int) $rec->courseid);
     }
 
+    public function test_import_fires_query_created_event(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $sink = $this->redirectEvents();
+        transfer::import([$this->source(['name' => 'Audited'])], [0]);
+        $events = $sink->get_events();
+        $sink->close();
+
+        $created = array_filter($events, static function ($e) {
+            return $e instanceof \report_sql\event\query_created;
+        });
+        $this->assertCount(1, $created);
+        $event = reset($created);
+        $this->assertSame('Audited', $event->other['name']);
+    }
+
     public function test_pagecoursecolumn_round_trips_export_to_import(): void {
         global $DB;
         $this->resetAfterTest();

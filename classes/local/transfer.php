@@ -197,7 +197,8 @@ class transfer {
                 'timecreated'  => $now,
                 'timemodified' => $now,
             ];
-            $DB->insert_record(query::TABLE, $record);
+            $newid = $DB->insert_record(query::TABLE, $record);
+            \report_sql\event\query_created::create_and_trigger($newid, $name);
             $imported++;
         }
 
