@@ -145,7 +145,7 @@ The JS editor (`amd/src/editor.es6.js`) mirrors the static denylist client-side 
 
 ### Import / export & bundled samples
 
-`classes/local/transfer.php` moves queries as portable JSON (`export()`/`parse()`/`import()`). Only portable fields travel (name, description, SQL, course scope, visibility, chart config); derived state is regenerated, so every import lands as a fresh **draft** owned by the importer and must be re-published. `import()` re-validates each SQL and demotes unknown courseids to site-wide.
+`classes/local/transfer.php` moves queries as portable JSON (`export()`/`parse()`/`import()`). Only portable fields travel (name, description, SQL, course scope, visibility, chart config, and the page-course filter column `pagecoursecolumn` — which names an output column so it stays valid across sites, unlike the site-specific courseid); derived state is regenerated, so every import lands as a fresh **draft** owned by the importer and must be re-published. (The other per-user/per-course filter choices — `useridcolumn`/`coursecolumn` — are **not** yet portable.) `import()` re-validates each SQL and demotes unknown courseids to site-wide.
 
 The plugin ships sample report views in `samples/samples.json`, loadable two ways, both via `transfer`:
 - **CLI** — `cli/import.php` (defaults to `report_sql.json` in the CWD).
