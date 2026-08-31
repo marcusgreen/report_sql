@@ -324,9 +324,9 @@ function report_sql_preview_summary(string $sql, int $courseid, string $viewname
     $lines = [];
     if ($feedback['rowcount'] >= 0) {
         // Show the generation time (row-count probe wall-clock) beside the count when measured.
+        $a = ['rows' => $feedback['rowcount'], 'ms' => $feedback['elapsed']];
         $lines[] = ($feedback['elapsed'] ?? -1) >= 0
-            ? get_string('checkrowcounttimed', 'report_sql',
-                ['rows' => $feedback['rowcount'], 'ms' => $feedback['elapsed']])
+            ? get_string('checkrowcounttimed', 'report_sql', $a)
             : get_string('checkrowcount', 'report_sql', $feedback['rowcount']);
     }
     $lines = array_merge($lines, $feedback['warnings']);
