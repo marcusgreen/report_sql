@@ -61,9 +61,11 @@ class analyser {
      *  executed for this exact SQL — the inline preview passes its throwaway view here. When given,
      *  the dry-run gate and the private probe view are skipped: the caller has already proven the SQL
      *  runs, and date-column introspection reuses the supplied view instead of building a second one.
-     * @return array{ok: bool, error: string, compiledsql: string, rowcount: int, datecolumns: string[],
-     *     casecolumns: array<array{col: string, mode: string}>, suggestions: string[],
-     *     warnings: string[], indexinfo: string[]}
+     * @return array{ok: bool, error: string, compiledsql: string, rowcount: int, elapsed: int,
+     *     datecolumns: string[], casecolumns: array<array{col: string, mode: string}>,
+     *     suggestions: string[], warnings: string[], indexinfo: string[]}
+     *     `elapsed` is the row-count probe's wall-clock in milliseconds (a proxy for report cost), or
+     *     -1 when it could not be measured.
      */
     public static function analyse(string $sql, int $courseid = 0, ?string $viewname = null): array {
         $result = [
@@ -71,6 +73,7 @@ class analyser {
             'error'       => '',
             'compiledsql' => '',
             'rowcount'    => 0,
+            'elapsed'     => -1,
             'datecolumns' => [],
             'casecolumns' => [],
             'suggestions' => [],
@@ -113,7 +116,15 @@ class analyser {
                 }
             }
 
+            // Time the row-count probe: it runs COUNT(*) over the whole query, so its wall-clock is a
+            // representative proxy for what the report costs to generate — surfaced beside the row
+            // count in the Preview / Test summary. Advisory only (like the count itself); left at -1
+            // when the probe could not run.
+            $t0 = microtime(true);
             $result['rowcount'] = self::row_count($resolved, $result['warnings']);
+            if ($result['rowcount'] >= 0) {
+                $result['elapsed'] = (int) round((microtime(true) - $t0) * 1000);
+            }
             $result['datecolumns'] = self::date_columns($validated, $resolved, $viewname);
             $result['indexinfo'] = self::index_report($validated, $resolved, $result['warnings']);
         } finally {

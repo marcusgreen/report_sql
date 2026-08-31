@@ -113,7 +113,10 @@ const render = async(container, data, sqlField) => {
     }
 
     if (data.rowcount >= 0) {
-        const count = await getString('checkrowcount', 'report_sql', data.rowcount);
+        // Show the generation time (row-count probe wall-clock) beside the count when measured.
+        const count = data.elapsed >= 0
+            ? await getString('checkrowcounttimed', 'report_sql', {rows: data.rowcount, ms: data.elapsed})
+            : await getString('checkrowcount', 'report_sql', data.rowcount);
         container.appendChild(alertBox('alert-info', count));
     }
 
