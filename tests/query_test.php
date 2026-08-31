@@ -115,6 +115,49 @@ final class query_test extends \advanced_testcase {
         $this->assertArrayHasKey('id', $columns);
     }
 
+    public function test_publish_freezes_link_path_into_columnsmeta(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $id = query::save($this->formdata([
+            'name'     => 'Linked view',
+            'querysql' => "SELECT %%LINK(id, '/user/view.php?id={}')%% AS profile FROM {user}",
+        ]));
+        query::get($id)->publish();
+
+        $record = $DB->get_record(query::TABLE, ['id' => $id], '*', MUST_EXIST);
+        $meta = json_decode($record->columnsmeta, true);
+
+        $this->assertArrayHasKey('profile', $meta);
+        $this->assertSame('/user/view.php?id={}', $meta['profile']['link']);
+        // A 2-arg link has no separate key column.
+        $this->assertArrayNotHasKey('linkkey', $meta['profile']);
+        // The link column stores the raw value, so it is not flagged as an enum dropdown.
+        $this->assertArrayNotHasKey('enum', $meta['profile']);
+    }
+
+    public function test_publish_freezes_link_key_column_into_columnsmeta(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // 3-arg %%LINK(display, keycol, 'path')%%: fullname shown, link keyed on the userid column.
+        $id = query::save($this->formdata([
+            'name'     => 'Keyed link view',
+            'querysql' => 'SELECT id AS userid, '
+                . "%%LINK(username, userid, '/user/view.php?id={}')%% AS fullname FROM {user}",
+        ]));
+        query::get($id)->publish();
+
+        $record = $DB->get_record(query::TABLE, ['id' => $id], '*', MUST_EXIST);
+        $meta = json_decode($record->columnsmeta, true);
+
+        $this->assertSame('/user/view.php?id={}', $meta['fullname']['link']);
+        // The key column resolves back to the real output column name that fills {}.
+        $this->assertSame('userid', $meta['fullname']['linkkey']);
+    }
+
     public function test_publish_binds_queryid_config_to_report(): void {
         $this->resetAfterTest();
         $this->setAdminUser();

@@ -109,13 +109,17 @@ class adhoc_view extends base {
         $cols = [];
         foreach ($this->columnsmeta as $name => $meta) {
             $type = $meta['type'] ?? 'text';
+            // A linked cell emits <a> HTML from its callback; keep the column TYPE_TEXT so Report
+            // Builder does not apply numeric/date formatting to the markup. Sorting still uses the
+            // underlying field (added below), so a numeric column keeps numeric ordering.
+            $coltype = !empty($meta['link']) ? 'text' : $type;
             $column = (new column(
                 $name,
                 self::raw_title($name),
                 $this->get_entity_name()
             ))
                 ->add_field("{$alias}.{$name}")
-                ->set_type(self::rb_column_type($type))
+                ->set_type(self::rb_column_type($coltype))
                 ->set_is_sortable(true);
 
             // A %%TIMESTAMP() column holds a raw epoch integer, so it sorts chronologically; format
@@ -127,6 +131,27 @@ class adhoc_view extends base {
                     // Passing $fixday = false keeps the leading zero on %d (dd), so 'dd' really means 2 digits.
                     return empty($value) ? '' : userdate((int) $value, $arg, 99, false);
                 }, $strftime);
+            } else if (!empty($meta['link'])) {
+                // A %%LINK() column stores the raw value (so it sorts/filters on the original) and
+                // renders it as a link at display time. The stored path is site-relative (enforced in
+                // view::link_columns()); wrapping it in a moodle_url prefixes the site address and
+                // escapes it, and s() escapes the visible text — so neither the path nor the cell
+                // value can inject markup. A `{}` in the path is the slot for the url-encoded value.
+                if (!empty($meta['linkkey'])) {
+                    // 3-arg %%LINK(display, keycol, 'path')%%: fill {} from a *different* output
+                    // column. Pull that column into this column's row under a per-column alias, so
+                    // the callback sees both the display value ($value) and the key ($row->$keyalias).
+                    $keyalias = 'linkkey_' . $name;
+                    $column->add_field("{$alias}.{$meta['linkkey']}", $keyalias);
+                    $column->set_callback(static function ($value, $row, $arg) use ($keyalias): string {
+                        $key = isset($row->$keyalias) ? (string) $row->$keyalias : null;
+                        return self::render_link((string) ($value ?? ''), (string) $arg, $key);
+                    }, (string) $meta['link']);
+                } else {
+                    $column->set_callback(static function ($value, $row, $arg): string {
+                        return self::render_link((string) ($value ?? ''), (string) $arg);
+                    }, (string) $meta['link']);
+                }
             } else if (!empty($meta['textcase'])) {
                 // A %%CASE() column stores the raw text (so it sorts/filters on the original value);
                 // apply the requested case only for display. The same helper formats chart labels
@@ -237,5 +262,26 @@ class adhoc_view extends base {
             'timestamp'    => date::class,
             default        => text::class,
         };
+    }
+
+    /**
+     * Render a %%LINK() cell: wrap the raw value in an <a href> pointing at the stored site-relative
+     * path. The path is guaranteed site-relative by {@see \report_sql\local\sql\view::link_columns()};
+     * routing it through a {@see \moodle_url} prefixes the site address and escapes the URL, and s()
+     * escapes the visible text — so neither the path nor the value can inject markup. A `{}` in the
+     * path is the slot for the url-encoded value; an empty value renders nothing (no dangling link).
+     *
+     * @param string $value Raw cell value (the column stores it untransformed) — the visible link text.
+     * @param string $path Stored site-relative path, with an optional `{}` value slot.
+     * @param string|null $key Value to fill the `{}` slot with; null uses $value (the two-argument form).
+     *     Set from a 3-arg %%LINK(display, keycol, 'path')%% so the visible text and the link key differ.
+     * @return string Link HTML, or '' for an empty value.
+     */
+    public static function render_link(string $value, string $path, ?string $key = null): string {
+        if ($value === '') {
+            return '';
+        }
+        $path = str_replace('{}', rawurlencode($key ?? $value), $path);
+        return \html_writer::link(new \moodle_url($path), s($value));
     }
 }

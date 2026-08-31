@@ -390,6 +390,7 @@ $string['tokenhintcontextuser'] = 'CONTEXT_USER level constant (30)';
 $string['tokenhintcoursecontext'] = "Bound course's context row id";
 $string['tokenhintcourseid'] = 'Bound course id (0 = site-wide)';
 $string['tokenhintepoch'] = 'Datetime literal/expression to Unix epoch integer';
+$string['tokenhintlink'] = "Render the cell as a link to a site-relative path; {} is the value slot, e.g. '/user/view.php?id={}'";
 $string['tokenhintnow'] = 'Current time as a Unix epoch integer';
 $string['tokenhinttimestamp'] = 'Epoch column to date; optional format, e.g. dd/mm/yyyy';
 $string['tokenhintwwwroot'] = 'Site URL (wwwroot)';

@@ -272,6 +272,7 @@ The plugin supports a small, fixed set of placeholder forms in your SQL. Everyth
 | `%%TIMESTAMP(expr[, format])%%` | `expr` (an epoch column) as a date, optionally formatted | Cross-database; date-sortable |
 | `%%CASE(expr, mode)%%` | `expr` (a text column) displayed in `upper`, `lower`, `title` or `sentence` case | Cross-database; stored value unchanged, so it still sorts/filters on the original text |
 | `%%GROUP_CONCAT([DISTINCT ]expr[, 'sep'])%%` | Aggregates the grouped rows of `expr` into one delimited string (default separator `,`) | Cross-database; use inside a query with `GROUP BY` |
+| `%%LINK(expr, 'path')%%` | Renders the cell as a link to a **site-relative** `path`; `{}` is the value slot | Display only; stored value unchanged, so it still sorts/filters on the original; on-site targets only |
 
 All are substituted once, when the view is built — the view is a fixed `CREATE VIEW`, so these bake a value in; they are **not** per-request parameters.
 
@@ -479,6 +480,32 @@ Notes:
 - Give the output an `AS alias`. The aggregated column reads back as plain **text** (no date/case display transform).
 - Use inside a query that has a `GROUP BY` — this is an aggregate, like `COUNT()` / `SUM()`.
 - `expr` **cannot contain a `%` character** (the token scan stops at `%`), same as `%%TIMESTAMP%%` / `%%CASE%%`.
+
+### `%%LINK(expr, 'path')%%` — make a cell a link
+
+Renders a column as a clickable **link** to a page on your site, without changing the stored value. Wrap the column expression and give a **site-relative** path; `{}` marks where the cell value is substituted (URL-encoded):
+
+```sql
+SELECT %%LINK(u.id, '/user/view.php?id={}')%%     AS userid,     -- links to the user's profile
+       u.firstname, u.lastname,
+       %%LINK(c.id, '/course/view.php?id={}')%%    AS courseid    -- links to the course
+FROM {user} u
+JOIN {course} c ON c.id = u.id      -- illustrative
+```
+
+Each `userid` cell shows the id and links to `/user/view.php?id=<that id>`; each `courseid` cell links to the course. A path with **no** `{}` links every row to the same page.
+
+**Why a token instead of building an `<a href>` in a `CONCAT`?**
+
+- **Safe.** Hand-built HTML string-glues the value into the markup with no escaping — a value containing `">…` is a cross-site-scripting hole. The token escapes both the value and the URL for you.
+- **On-site only.** The path must be **site-relative** (start with `/`, no `http://` or `https://`); it is resolved through Moodle's URL builder, so a link can never point to another site. An absolute or external path is rejected and the column is left as a plain value.
+- **Sorting & filtering stay natural.** The stored column keeps its **original** value, so it still sorts and filters on the real value — only the display is wrapped in a link.
+
+Notes:
+
+- Give the column an `AS alias` (or wrap a bare `column`) so the plugin can name the output column.
+- The link is display-only; it is **not** combinable with a `%%CASE%%` transform on the same column (the link takes precedence).
+- `expr` **cannot contain a `%` character** (the token scan stops at `%`), same as `%%TIMESTAMP%%` / `%%CASE%%`. The path is a single-quoted literal and may contain `?`, `=`, `&`, `{}`.
 
 ### Rejected placeholders
 

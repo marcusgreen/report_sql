@@ -216,6 +216,69 @@ final class view_test extends \advanced_testcase {
     }
 
     /**
+     * %%LINK(expr, 'path')%% resolves to the bare expression (the path is dropped from the SQL and
+     * applied later as a display callback), leaving no token or path behind.
+     */
+    public function test_resolve_strips_link_token_to_bare_expr(): void {
+        $this->resetAfterTest();
+
+        $resolved = view::resolve_placeholders(
+            "SELECT %%LINK(u.id, '/user/view.php?id={}')%% AS profile, "
+            . "%%LINK(c.id, '/course/view.php?id={}')%% FROM {user} u"
+        );
+
+        $this->assertStringContainsString('(u.id) AS profile', $resolved);
+        $this->assertStringContainsString('(c.id)', $resolved);
+        $this->assertStringNotContainsString('%%', $resolved);
+        $this->assertStringNotContainsString('/user/view.php', $resolved);
+        $this->assertStringNotContainsString('/course/view.php', $resolved);
+    }
+
+    /**
+     * link_columns() maps each token's output column (AS alias, else trailing identifier) to its
+     * site-relative path, and rejects absolute / external / non-slash paths.
+     */
+    public function test_link_columns_parses_aliases_and_rejects_offsite(): void {
+        $sql = 'SELECT '
+            . "%%LINK(u.id, '/user/view.php?id={}')%% AS profile, "   // Aliased, site-relative.
+            . "%%LINK(c.id, '/course/view.php?id={}')%% course, "     // Implicit alias (no AS).
+            . "%%LINK(u.username, '/user/profile.php?u={}')%%, "      // No alias -> trailing identifier.
+            . "%%LINK(u.email, 'https://evil.example/{}')%% AS ext, " // Absolute/external -> rejected.
+            . "%%LINK(u.city, 'user/view.php?id={}')%% AS rel "       // No leading slash -> rejected.
+            . 'FROM {user} u';
+
+        $map = view::link_columns($sql);
+
+        $this->assertSame('/user/view.php?id={}', $map['profile']['path']);
+        $this->assertNull($map['profile']['keycol']);
+        $this->assertSame('/course/view.php?id={}', $map['course']['path']);
+        $this->assertSame('/user/profile.php?u={}', $map['username']['path']);
+        $this->assertArrayNotHasKey('ext', $map);
+        $this->assertArrayNotHasKey('rel', $map);
+    }
+
+    /**
+     * The 3-argument %%LINK(display, keycol, 'path')%% form records the key column (which fills {})
+     * separately from the display expression, and resolve_placeholders() still emits only the bare
+     * display expression (both the key identifier and the path are dropped from the SQL).
+     */
+    public function test_link_columns_captures_key_column(): void {
+        $sql = 'SELECT u.id AS userid, '
+            . "%%LINK(CONCAT(u.firstname, ' ', u.lastname), userid, '/user/view.php?id={}')%% AS fullname "
+            . 'FROM {user} u';
+
+        $map = view::link_columns($sql);
+        $this->assertSame('/user/view.php?id={}', $map['fullname']['path']);
+        $this->assertSame('userid', $map['fullname']['keycol']);
+
+        $resolved = view::resolve_placeholders($sql);
+        $this->assertStringContainsString("(CONCAT(u.firstname, ' ', u.lastname)) AS fullname", $resolved);
+        $this->assertStringNotContainsString('%%', $resolved);
+        $this->assertStringNotContainsString(', userid,', $resolved);
+        $this->assertStringNotContainsString('/user/view.php', $resolved);
+    }
+
+    /**
      * %%GROUP_CONCAT(expr, 'sep')%% resolves to the live family's aggregate spelling:
      * GROUP_CONCAT(expr SEPARATOR 'sep') on MySQL/MariaDB, string_agg((expr)::text, 'sep') on Postgres.
      */

@@ -349,6 +349,19 @@
                 "ycol": "",
                 "rowlimit": ""
             }
+        },
+        {
+            "name": "User profile links: demonstrates %%LINK",
+            "description": "Lists users with their full name linked to their Moodle profile page. Demonstrates the 3-argument %%LINK(display, keycol, '/path')%% token: the full name is the visible text (so the column sorts and filters on the name), while the separate key column 'userid' fills the {} slot in the path, so the link keys on u.id. The link is rendered safely via moodle_url + s(), replacing the fragile hand-built CONCAT('<a href>') approach. The path must be site-relative (start with /, no scheme), so off-site URLs are rejected at publish.",
+            "querysql": "SELECT\r\n    u.id AS userid,\r\n    %%LINK(CONCAT(u.firstname, ' ', u.lastname), userid, '/user/view.php?id={}')%% AS fullname,\r\n    u.email\r\nFROM\r\n    {user} u\r\nWHERE\r\n    u.deleted = 0\r\nLIMIT 100",
+            "courseid": 0,
+            "visible": 1,
+            "chartmeta": {
+                "type": "none",
+                "xcol": "",
+                "ycol": "",
+                "rowlimit": ""
+            }
         }
     ]
 }
