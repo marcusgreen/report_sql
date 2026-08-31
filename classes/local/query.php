@@ -1277,11 +1277,12 @@ class query {
      * @param array $columns Column map from {@see view::columns()} (has meta_type).
      * @param string $sql Raw saved SQL (before placeholder resolution), for timestamp-token recovery.
      * @param string|null $viewname Live view name (without prefix) to probe for enum candidates; null skips.
-     * @return array Column meta keyed by column name (type, label, dateformat?, textcase?, enum?).
+     * @return array Column meta keyed by column name (type, label, dateformat?, textcase?, link?, enum?).
      */
     public static function build_columnsmeta(array $columns, string $sql, ?string $viewname = null): array {
         $tsformats = view::timestamp_columns($sql);
         $casemodes = view::case_columns($sql);
+        $linkpaths = view::link_columns($sql);
 
         $meta = [];
         foreach ($columns as $name => $info) {
@@ -1299,6 +1300,22 @@ class query {
                 ];
                 if (array_key_exists($key, $casemodes)) {
                     $meta[$name]['textcase'] = $casemodes[$key];
+                }
+            }
+            // A %%LINK() column renders as a link at display time (over any type, including a
+            // timestamp). It stores the raw value, so it still sorts/filters on the original.
+            if (array_key_exists($key, $linkpaths)) {
+                $meta[$name]['link'] = $linkpaths[$key]['path'];
+                // A 3-arg %%LINK(display, keycol, 'path')%% fills {} from another output column.
+                // Resolve the recorded (lower-cased) key-column name back to the real column name
+                // so the entity can select it; drop it silently if it names no output column.
+                if ($linkpaths[$key]['keycol'] !== null) {
+                    foreach ($columns as $cn => $ci) {
+                        if (strtolower($cn) === $linkpaths[$key]['keycol']) {
+                            $meta[$name]['linkkey'] = $cn;
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -1350,7 +1367,8 @@ class query {
         }
 
         foreach ($meta as $name => $info) {
-            if (($info['type'] ?? 'text') !== 'text' || isset($info['textcase'])) {
+            // A dropdown of raw values makes no sense under a case-transformed or linked display.
+            if (($info['type'] ?? 'text') !== 'text' || isset($info['textcase']) || isset($info['link'])) {
                 continue;
             }
             try {

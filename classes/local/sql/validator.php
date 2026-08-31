@@ -118,7 +118,10 @@ class validator {
 
         // A ? inside string literals (e.g. URL query strings like view.php?id=) is treated as
         // a positional DML parameter by Moodle's database layer, causing "Expected N, got 0" errors.
-        if (strpos($sql, '?') !== false) {
+        // A ? inside a %%...%% token (e.g. the path of %%LINK(id, '/view.php?id={}')%%) is exempt:
+        // the token is resolved away before the SQL runs, so that ? never reaches the DML layer. Mask
+        // token spans before the scan (unsupported tokens are still rejected below).
+        if (strpos(preg_replace('/%%[^%\n]*%%/', '', $sql) ?? $sql, '?') !== false) {
             throw new \moodle_exception('errquestionmark', 'report_sql');
         }
 
@@ -245,9 +248,10 @@ class validator {
      * constants (%%CONTEXT_COURSE%% etc.). The parameterised %%TIMESTAMP(expr)%% (epoch
      * column → datetime, rendered per dialect), %%EPOCH(datetime)%% (datetime literal/expr → epoch
      * int, per dialect), %%CASE(expr, mode)%% (text column → upper/lower/title/sentence case,
-     * applied per-viewer as a display callback) and %%GROUP_CONCAT([DISTINCT ]expr[, sep])%%
-     * (aggregate → delimited string: MySQL GROUP_CONCAT / Postgres string_agg) tokens are matched by
-     * shape; their inner expression is resolved in
+     * applied per-viewer as a display callback), %%GROUP_CONCAT([DISTINCT ]expr[, sep])%%
+     * (aggregate → delimited string: MySQL GROUP_CONCAT / Postgres string_agg) and
+     * %%LINK(expr, 'path')%% (render the cell as a link to a site-relative path, applied per-viewer
+     * as a display callback) tokens are matched by shape; their inner expression is resolved in
      * {@see \report_sql\local\sql\view::resolve_placeholders()}.
      *
      * @param string $token A token captured by the %%..%% scan, including the surrounding %%.
@@ -263,7 +267,7 @@ class validator {
                 return true;
             }
         }
-        return (bool) preg_match('/^%%(?:TIMESTAMP|EPOCH|CASE|GROUP_CONCAT)\(.+\)%%$/i', $token);
+        return (bool) preg_match('/^%%(?:TIMESTAMP|EPOCH|CASE|GROUP_CONCAT|LINK)\(.+\)%%$/i', $token);
     }
 
     /**

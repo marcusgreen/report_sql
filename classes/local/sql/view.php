@@ -285,6 +285,16 @@ class view {
     single-quoted literal (defaults to ','); an optional leading DISTINCT is
     allowed, e.g. %%GROUP_CONCAT(DISTINCT c.format, ', ')%%. Use inside a query
     that has a GROUP BY. Note the full closing )%%. expr must not contain '%'.
+  - Link a cell (display only, stored value and sort/filter unchanged): wrap the
+    column in %%LINK(expr, 'path')%% where path is a SITE-RELATIVE URL (must start
+    with '/', no scheme) and {} is the slot for the cell value — e.g.
+    %%LINK(u.id, '/user/view.php?id={}')%% AS profile. To display one column but
+    key the link on another, add a key column: %%LINK(display, keycol, 'path')%%,
+    where keycol names another selected output column that fills {} — e.g.
+    %%LINK(CONCAT(u.firstname, ' ', u.lastname), userid, '/user/view.php?id={}')%%
+    AS fullname (with u.id AS userid also selected). Prefer this over building an
+    <a href> by hand in a CONCAT: it escapes the value (no XSS) and can never point
+    off-site. Note the full closing )%%. expr must not contain '%'.
   - %%WWWROOT%% is the site URL, for building links inside a CONCAT.
   - %%CONTEXT_SYSTEM/USER/COURSECAT/COURSE/MODULE/BLOCK%% are the context-level
     constants (e.g. %%CONTEXT_COURSE%% = 50) — prefer these over the literal
@@ -403,6 +413,19 @@ RULES;
             $sql
         ) ?? $sql;
 
+        // Token %%LINK(display[, keycol], 'path')%% — emit the *raw* display expression. The column
+        // keeps its original value (so it sorts and filters on the untransformed value); the
+        // site-relative link target is applied per-viewer as a Report Builder display callback that
+        // wraps the value in an <a href>. Both the optional key-column argument (a bare identifier
+        // naming another output column that fills the path's {} slot) and the path literal are
+        // dropped from the SQL here; see self::link_columns().
+        $sql = preg_replace_callback(
+            '/%%LINK\(\s*(' . self::TOKEN_EXPR . ')\s*(?:,\s*[A-Za-z_][A-Za-z0-9_]*\s*)?,'
+                . '\s*\'(?:[^\']|\'\')*\'\s*\)%%/i',
+            static fn(array $m): string => '(' . $m[1] . ')',
+            $sql
+        ) ?? $sql;
+
         return preg_replace_callback(
             '/\{([a-z0-9_]+)\}/i',
             static fn(array $m): string => $CFG->prefix . $m[1],
@@ -479,6 +502,16 @@ RULES;
         . '(["`]?)([A-Za-z0-9_]+)\3)?';
 
     /**
+     * Same as {@see self::ALIAS_SUFFIX} but assumes exactly **three** capture groups precede it, so the
+     * opening-quote group is 4 (`\4`) and the alias name is group 5 (`$m[5]`). Used by the 3-argument
+     * `%%LINK(display, keycol, 'path')%%` form, which captures one more group (the key column) than the
+     * two-group tokens (CASE/2-arg LINK) that use ALIAS_SUFFIX.
+     */
+    private const ALIAS_SUFFIX_G3 = '(?:\s+(?:AS\s+)?(?!(?:FROM|WHERE|GROUP|ORDER|HAVING|LIMIT|UNION)\b)'
+        // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
+        . '(["`]?)([A-Za-z0-9_]+)\4)?';
+
+    /**
      * Find the output columns produced by `%%CASE(expr, mode)%%` tokens in a saved query, mapping
      * each to its requested case mode.
      *
@@ -515,6 +548,64 @@ RULES;
                 continue;
             }
             $columns[strtolower($name)] = $mode;
+        }
+        return $columns;
+    }
+
+    /**
+     * Find the output columns produced by `%%LINK(expr, 'path')%%` tokens in a saved query, mapping
+     * each to its site-relative link path.
+     *
+     * Mirrors {@see self::case_columns()}: the resolved SQL emits the bare expression, so the link
+     * target is recorded in `columnsmeta` and applied by the Report Builder entity as a display
+     * callback (the stored value stays the original, so sort/filter act on it). The output column
+     * name is the alias when present (`… AS foo` or the implicit `… foo` form), else the trailing
+     * identifier of a simple `a.b` / `b` expression; tokens too complex to name without an alias are
+     * skipped.
+     *
+     * The path must be **site-relative** — it has to start with `/` and must not contain a scheme
+     * (`://`). Absolute/external targets are rejected (skipped, leaving the column a plain value) so
+     * a link can never point off-site: the callback wraps every path in a {@see \moodle_url}, which
+     * prefixes the site address, closing off open-redirect / phishing. A literal `{}` in the path is
+     * the substitution slot for the (url-encoded) cell value; a path with no slot links every row to
+     * the same page.
+     *
+     * The optional **key column** — `%%LINK(display, keycol, 'path')%%` — names another output column
+     * whose value fills the `{}` slot, so the visible column can show one thing (e.g. a full name) while
+     * the link keys on another (e.g. the id): `%%LINK(CONCAT(u.firstname,' ',u.lastname), userid,
+     * '/user/view.php?id={}')%%`. Without it the display value fills `{}` (the two-argument form).
+     *
+     * @param string $sql Raw saved SQL (before placeholder resolution).
+     * @return array<string, array{path: string, keycol: ?string}> Lower-cased output column name =>
+     *     site-relative path and the optional lower-cased key-column name (null = fill {} from own value).
+     */
+    public static function link_columns(string $sql): array {
+        $pattern = '/%%LINK\(\s*(' . self::TOKEN_EXPR . ')\s*(?:,\s*([A-Za-z_][A-Za-z0-9_]*)\s*)?,'
+            . '\s*\'((?:[^\']|\'\')*)\'\s*\)%%' . self::ALIAS_SUFFIX_G3 . '/i';
+        if (!preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
+            return [];
+        }
+        $columns = [];
+        foreach ($matches as $m) {
+            $expr   = $m[1];
+            $keycol = $m[2] ?? '';
+            $path   = str_replace("''", "'", $m[3]);
+            $alias  = $m[5] ?? '';
+            // Site-relative only: must start with '/' and carry no scheme.
+            if (!preg_match('#^/#', $path) || strpos($path, '://') !== false) {
+                continue;
+            }
+            if ($alias !== '') {
+                $name = $alias;
+            } else if (preg_match('/([A-Za-z0-9_]+)\s*$/', $expr, $im)) {
+                $name = $im[1];
+            } else {
+                continue;
+            }
+            $columns[strtolower($name)] = [
+                'path'   => $path,
+                'keycol' => $keycol !== '' ? strtolower($keycol) : null,
+            ];
         }
         return $columns;
     }
