@@ -223,6 +223,9 @@ class analyser {
         try {
             $count = $DB->count_records_sql("SELECT COUNT(*) FROM ({$resolved}) rs_count");
         } catch (\dml_exception $e) {
+            // dry_run() already caught syntax errors, so a failure here is the timeout cap (or a
+            // resource limit) on a slow/huge query — warn instead of silently showing no count.
+            $warnings[] = get_string('checkrowcounttimeout', 'report_sql', (int) round(self::PROBE_TIMEOUT_MS / 1000));
             return -1;
         }
         if ($count >= self::LARGE_RESULT) {
