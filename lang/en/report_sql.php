@@ -121,6 +121,8 @@ $string['checkquery_help'] = 'Runs your SQL against the database without saving 
 
 This is advisory only: it never changes your data and is not required before you save or publish.';
 $string['checkrowcount'] = 'Rows returned: {$a}.';
+$string['checkrowcounttimed'] = 'Rows returned: {$a->rows}. Generated in {$a->ms} ms.';
+$string['checkrowcounttimeout'] = 'Row count timed out after {$a}s — the query is slow or the result very large. The report may be slow.';
 $string['checkselectsubquery'] = 'A subquery in the SELECT list is evaluated once per returned row, multiplying work on a large result. A JOIN or a WITH (CTE) is usually faster.';
 $string['checksortindex'] = 'The report sorts by {$a->sortcol}, which is not indexed, so the database orders the whole result. Sorting by an indexed column is faster — indexed columns available: {$a->indexed}.';
 $string['compiledsql'] = 'Compiled SQL (what actually ran)';

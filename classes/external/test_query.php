@@ -50,9 +50,9 @@ class test_query extends external_api {
      *
      * @param string $sql
      * @param int $courseid
-     * @return array{ok: bool, error: string, compiledsql: string, rowcount: int, datecolumns: string[],
-     *     casecolumns: array<array{col: string, mode: string}>, suggestions: string[],
-     *     warnings: string[], indexinfo: string[]}
+     * @return array{ok: bool, error: string, compiledsql: string, rowcount: int, elapsed: int,
+     *     datecolumns: string[], casecolumns: array<array{col: string, mode: string}>,
+     *     suggestions: string[], warnings: string[], indexinfo: string[]}
      */
     public static function execute(string $sql, int $courseid = 0): array {
         ['sql' => $sql, 'courseid' => $courseid] =
@@ -81,6 +81,12 @@ class test_query extends external_api {
                 ''
             ),
             'rowcount'    => new external_value(PARAM_INT, 'Rows the report would return, -1 if uncountable'),
+            'elapsed'     => new external_value(
+                PARAM_INT,
+                'Row-count probe wall-clock in ms (a proxy for report cost), -1 if not measured',
+                VALUE_DEFAULT,
+                -1
+            ),
             'datecolumns' => new external_multiple_structure(
                 new external_value(PARAM_TEXT, 'Date-like output column name'),
                 'Integer columns that look like stored timestamps (click-to-wrap in %%TIMESTAMP()%%)',
