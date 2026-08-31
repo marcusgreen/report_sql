@@ -1,4 +1,4 @@
-<p align="center"><img src="logo.png" alt="SQL Report logo" width="360"></p>
+<p align="center"><img src="images/logo.png" alt="SQL Report logo" width="360"></p>
 
 # SQL Reports — User Documentation
 
@@ -6,7 +6,7 @@
 
 SQL Report (`report_sql`) lets you write a SQL `SELECT` query, click **Publish**, and get a fully-configurable Moodle **Report Builder** report — no PHP required. Publishing turns your SQL into a database view, reads its columns, and registers a Report Builder data source pointing at that view. From there you choose columns, add filters, sort, chart, schedule exports, and control who can see it. Warning report writing tools run the risk of leaking information, test and double check who can see the information in anything created.
 
-![The Saved report views list with a row's actions menu open](report-views-list.png)
+![The Saved report views list with a row's actions menu open](images/report-views-list.png)
 
 Everything starts from the **Saved SQL reports** list (*Site admin → Reports → SQL Reports*). Each row shows the view's name, owner, status (**Draft** or **Published**) and when it was last changed. A published row offers **Open report**, **Edit**, **Edit in Report Builder** and **Unpublish**; the **⋮** menu adds **Schedule emails**, **New report from this view**, **Duplicate** and **Delete**. Draft rows only offer **Edit** until you publish them. See [Managing report views](#managing-report-views-list-page) for the full workflow.
 
@@ -100,7 +100,7 @@ Holders can then create report views **anywhere** (authoring is system-wide; the
 
 ## The edit form, field by field
 
-![The query edit form](editform.png)
+![The query edit form](images/editform.png)
 
 | Field | What it does |
 |---|---|
@@ -504,7 +504,7 @@ When **SQL syntax highlight and autocomplete** is enabled (admin setting), the S
 - **Alias-aware columns** — write `FROM user u`, then type `u.` to list user columns.
 - **Tab** accepts the highlighted completion; Space does not (so you can type aliases freely after a table name).
 
-![SQL editor autocomplete showing alias-aware column suggestions with foreign-key hints](intellisense.png)
+![SQL editor autocomplete showing alias-aware column suggestions with foreign-key hints](images/intellisense.png)
 
 Above, typing `ue.` after `JOIN user_enrolments ue` lists that table's columns. Columns that are foreign keys are shown first with a `→ target.column` hint (e.g. `userid → user.id`), so you can see which table each column joins to as you build the query. See [Support for third-party plugins](#support-for-third-party-plugins) for where these relationships come from.
 
@@ -620,7 +620,7 @@ SQL Report sets this up **automatically at publish time**. For each plain-text c
 
 *(Appears only after publishing.)* Add an optional chart on top of the report data. The **Chart settings** section of the edit form controls it:
 
-![The Chart settings section of the edit form](chart_settings.png)
+![The Chart settings section of the edit form](images/chart_settings.png)
 
 | Setting | Meaning |
 |---|---|
@@ -637,15 +637,15 @@ Once configured, a **View chart** link appears for the published view. The chart
 
 **Example** — enrolments per course: `SELECT c.fullname AS course, COUNT(ue.id) AS enrolments FROM course c JOIN enrol e ON e.courseid = c.id JOIN user_enrolments ue ON ue.enrolid = e.id GROUP BY c.fullname`. Set chart type **Bar**, label column **course**, value column **enrolments**. Tick **Show value labels** to print each enrolment count on top of its bar, so exact figures read straight off the chart:
 
-![A bar chart with the value printed on top of each bar](bar_chart_labels.png)
+![A bar chart with the value printed on top of each bar](images/bar_chart_labels.png)
 
 A **Line** chart plots the value column as points joined into a trend line — good for values over time:
 
-![A line chart of report data](line_graph.png)
+![A line chart of report data](images/line_graph.png)
 
 For **Pie** and **Doughnut** charts, each slice's value is appended to its legend label so the number is visible without hovering:
 
-![A pie chart of report data](pie_chart.png)
+![A pie chart of report data](images/pie_chart.png)
 
 ---
 
@@ -889,6 +889,13 @@ Two long-standing plugins build reports from SQL: **Ad-hoc database queries** (`
 - `block_configurable_reports` bundles authoring *and* display in one block; SQL Report splits these into `report_sql` (author) + `block_sqlreports` (display).
 
 > SQL Report **can import** the SQL reports from both plugins — see [Importing from other SQL report plugins](#importing-from-other-sql-report-plugins). Each import lands as a fresh draft you review and publish; reports using features that cannot be translated automatically are rejected with a reason so you can port them by hand.
+
+---
+
+## Limitations
+
+For features people often expect but SQL Report does not have — pop-up prompts, `SELECT *` across joins,
+charts in spreadsheet exports, and more — see [What Report SQL cannot do](limitations.md).
 
 ---
 
