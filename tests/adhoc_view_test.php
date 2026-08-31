@@ -97,12 +97,18 @@ final class adhoc_view_test extends \advanced_testcase {
         $this->resetAfterTest();
 
         $html = \report_sql\reportbuilder\local\entities\adhoc_view::render_link(
-            'Ada Lovelace', '/user/view.php?id={}', '42');
+            'Ada Lovelace',
+            '/user/view.php?id={}',
+            '42'
+        );
         $this->assertStringContainsString('href="' . $CFG->wwwroot . '/user/view.php?id=42"', $html);
         $this->assertStringContainsString('>Ada Lovelace</a>', $html);
 
         // Empty visible text renders nothing even when a key is supplied.
         $this->assertSame('', \report_sql\reportbuilder\local\entities\adhoc_view::render_link(
-            '', '/user/view.php?id={}', '42'));
+            '',
+            '/user/view.php?id={}',
+            '42'
+        ));
     }
 }
