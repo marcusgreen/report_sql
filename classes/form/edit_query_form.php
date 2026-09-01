@@ -292,42 +292,17 @@ class edit_query_form extends moodleform {
                         ['role' => 'alert']
                     )
                 );
-                // Approvers get the same one-tick reopen path for the filter section as for the chart.
-                if (!empty($this->_customdata['canpublish'])) {
-                    $mform->addElement(
-                        'advcheckbox',
-                        'focusfilter',
-                        '',
-                        get_string('focusfilter', 'report_sql')
-                    );
-                    $mform->setType('focusfilter', PARAM_BOOL);
-                    $mform->setDefault('focusfilter', 0);
-                }
                 $mform->addElement('header', 'chartheader', get_string('chartsettings', 'report_sql'));
-                // The "See the option below" hint is appended only for approvers — the checkbox it points to is
-                // added just below, and only when they can publish.
-                $canpublish = !empty($this->_customdata['canpublish']);
-                $note = get_string('chartpublishrequired', 'report_sql')
-                    . ($canpublish ? ' ' . get_string('chartpublishrequiredsee', 'report_sql') : '');
                 $mform->addElement(
                     'static',
                     'chart_unpublished_note',
                     '',
-                    \html_writer::div($note, 'alert alert-warning', ['role' => 'alert'])
+                    \html_writer::div(
+                        get_string('chartpublishrequired', 'report_sql'),
+                        'alert alert-warning',
+                        ['role' => 'alert']
+                    )
                 );
-                // Approvers get a one-tick path: publish now and reopen here with the chart section
-                // unlocked (edit.php reads focuschart on the Save & publish redirect). Authors without
-                // approve can't publish, so the option is pointless for them.
-                if ($canpublish) {
-                    $mform->addElement(
-                        'advcheckbox',
-                        'focuschart',
-                        '',
-                        get_string('focuschart', 'report_sql')
-                    );
-                    $mform->setType('focuschart', PARAM_BOOL);
-                    $mform->setDefault('focuschart', 0);
-                }
             }
             return;
         }
@@ -345,9 +320,9 @@ class edit_query_form extends moodleform {
         // Per-user filter: restrict the report to rows whose chosen column matches the viewing
         // user's id. Offered only once published, since the column list comes from the live view.
         $mform->addElement('header', 'useridfilterheader', get_string('useridfilter', 'report_sql'));
-        // Arrived via "Save, publish & configure filters": expand so the anchor jump lands on open
-        // controls rather than a collapsed header.
-        if (!empty($this->_customdata['focusfilter'])) {
+        // Arrived via "Publish and continue editing": expand so the anchor jump lands on open controls
+        // rather than a collapsed header.
+        if (!empty($this->_customdata['justpublished'])) {
             $mform->setExpanded('useridfilterheader', true);
         }
         $mform->addElement(
@@ -383,9 +358,7 @@ class edit_query_form extends moodleform {
         $mform->addHelpButton('pagecoursecolumn', 'pagecoursecolumn', 'report_sql');
 
         $mform->addElement('header', 'chartheader', get_string('chartsettings', 'report_sql'));
-        // Arrived via "Save, publish & configure chart": expand the section so the anchor jump lands
-        // on open controls rather than a collapsed header.
-        if (!empty($this->_customdata['focuschart'])) {
+        if (!empty($this->_customdata['justpublished'])) {
             $mform->setExpanded('chartheader', true);
         }
 

@@ -38,11 +38,9 @@ $id = optional_param('id', 0, PARAM_INT);
 $courseid = optional_param('courseid', 0, PARAM_INT);
 $aiquestion = optional_param('aiquestion', '', PARAM_RAW_TRIMMED);
 $aiaction = optional_param('aiaction', '', PARAM_ALPHA);
-// Set when the author reached the edit form via "Save, publish & configure chart" / "…filters":
-// expand and jump to that section on the reopened (now published) form. See
-// edit_query_form::definition_after_data().
-$focuschart = optional_param('focuschart', 0, PARAM_BOOL);
-$focusfilter = optional_param('focusfilter', 0, PARAM_BOOL);
+// Set on the "Publish and continue editing" reopen: expand the just-unlocked chart / filter sections
+// so the anchor jump lands on open controls rather than collapsed headers.
+$justpublished = optional_param('justpublished', 0, PARAM_BOOL);
 // SQL currently in the "SQL (select only)" field, posted alongside an AI generate request so a
 // prompt that refers to existing SQL ("add a column to this", "fix this error") can use it as basis.
 $aicurrentsql = optional_param('querysql', '', PARAM_RAW);
@@ -93,8 +91,7 @@ $canpublish = has_capability('report/sql:approve', $context);
 $mform = new edit_query_form(null, [
     'courseid' => $formcourseid,
     'canpublish' => $canpublish,
-    'focuschart' => $focuschart,
-    'focusfilter' => $focusfilter,
+    'justpublished' => $justpublished,
 ]);
 
 // Consolidate form defaults into one object so AI generation can override querysql.
@@ -222,22 +219,16 @@ if ($mform->is_cancelled()) {
                 \core\output\notification::NOTIFY_ERROR
             );
         }
-        // The "Save, publish & configure chart" / "…filters" button reopens this form (now published, that
-        // section unlocked) scrolled to and expanded at the relevant header, instead of returning to
-        // the index. If both are ticked, expand both and anchor to the filter section (it sits first).
-        if (!empty($data->focuschart) || !empty($data->focusfilter)) {
-            $params = ['id' => $newid];
-            if (!empty($data->focuschart)) {
-                $params['focuschart'] = 1;
-            }
-            if (!empty($data->focusfilter)) {
-                $params['focusfilter'] = 1;
-            }
-            $anchor = !empty($data->focusfilter) ? 'id_useridfilterheader' : 'id_chartheader';
-            $publishtarget = new moodle_url('/report/sql/edit.php', $params, $anchor);
-        } else if (!empty($data->saveandpublishedit)) {
-            // Publish and continue editing: reopen this (now published) form to iterate.
-            $publishtarget = new moodle_url('/report/sql/edit.php', ['id' => $newid]);
+        // "Publish and continue editing" reopens this (now published) form to iterate — the chart /
+        // filter sections are unlocked on the reopen. Anchor to the first unlocked section (per-user
+        // filter header) so the form scrolls down to the newly available controls near the button,
+        // rather than landing at the top. Plain "Save and publish" returns to the index.
+        if (!empty($data->saveandpublishedit)) {
+            $publishtarget = new moodle_url(
+                '/report/sql/edit.php',
+                ['id' => $newid, 'justpublished' => 1],
+                'id_useridfilterheader'
+            );
         } else {
             $publishtarget = $returnurl;
         }
