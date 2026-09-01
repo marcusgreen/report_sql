@@ -123,7 +123,9 @@ class analyser {
             $t0 = microtime(true);
             $result['rowcount'] = self::row_count($resolved, $result['warnings']);
             if ($result['rowcount'] >= 0) {
-                $result['elapsed'] = (int) round((microtime(true) - $t0) * 1000);
+                // Floor at 1ms: a sub-millisecond probe rounds to 0, which reads as "no time at
+                // all" in the summary. Report the smallest non-zero cost instead.
+                $result['elapsed'] = max(1, (int) round((microtime(true) - $t0) * 1000));
             }
             $result['datecolumns'] = self::date_columns($validated, $resolved, $viewname);
             $result['indexinfo'] = self::index_report($validated, $resolved, $result['warnings']);
