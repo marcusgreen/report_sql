@@ -318,4 +318,73 @@ final class sql_validator_test extends \advanced_testcase {
         $this->expectExceptionMessage(get_string('errplaceholder', 'report_sql', '%%FILTER_USERS%%'));
         validator::validate('SELECT id FROM {user} WHERE id = %%FILTER_USERS%%');
     }
+
+    /**
+     * A ? inside a %%...%% token is accepted: the token is resolved away by
+     * {@see \report_sql\local\sql\view::resolve_placeholders()} before the SQL reaches the
+     * database, so that ? never becomes a positional bind parameter. Pins the exemption the
+     * client-side mirror in amd/src/sqlfix.js has to reproduce.
+     *
+     * @dataProvider token_questionmark_provider
+     * @param string $sql
+     */
+    public function test_questionmark_inside_token_is_allowed(string $sql): void {
+        $this->assertNotEmpty(validator::validate($sql));
+    }
+
+    /**
+     * Tokens whose arguments legitimately carry a ? — every useful Moodle URL is a view.php?id= form.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function token_questionmark_provider(): array {
+        return [
+            'LINK two-arg' => [
+                "SELECT %%LINK(u.id, '/user/view.php?id={}')%% AS profile FROM {user} u",
+            ],
+            'LINK three-arg' => [
+                "SELECT u.id AS userid, %%LINK(u.firstname, userid, '/user/view.php?id={}')%% AS n " .
+                    'FROM {user} u',
+            ],
+            'LINK with multi-param path' => [
+                "SELECT %%LINK(c.id, '/mod/forum/view.php?id={}&p=1')%% AS c FROM {course} c",
+            ],
+            'token beside a clean literal' => [
+                "SELECT %%LINK(u.id, '/user/view.php?id={}')%% AS p, 'plain' AS t FROM {user} u",
+            ],
+        ];
+    }
+
+    /**
+     * A ? outside any token is still rejected — the database layer would read it as a positional
+     * bind parameter and fail with a parameter-count error.
+     *
+     * @dataProvider bare_questionmark_provider
+     * @param string $sql
+     */
+    public function test_bare_questionmark_is_rejected(string $sql): void {
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('errquestionmark', 'report_sql'));
+        validator::validate($sql);
+    }
+
+    /**
+     * A ? that has to stay rejected, including one sitting alongside a token that exempts its own.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function bare_questionmark_provider(): array {
+        return [
+            'literal URL' => [
+                "SELECT CONCAT('/course/view.php?id=', c.id) AS url FROM {course} c",
+            ],
+            'bare placeholder' => [
+                'SELECT id FROM {user} WHERE id = ?',
+            ],
+            'bare literal beside a token' => [
+                "SELECT %%LINK(u.id, '/user/view.php?id={}')%% AS p, " .
+                    "CONCAT('/x.php?y=', u.id) AS u FROM {user} u",
+            ],
+        ];
+    }
 }
