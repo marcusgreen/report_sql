@@ -23,17 +23,28 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+// A %%...%% token span. A ? inside a token — e.g. the path of
+// %%LINK(u.id, '/user/view.php?id={}')%% — never reaches the DML layer: view::resolve_placeholders
+// rewrites the token away before the SQL runs, so the server-side validator exempts token spans and
+// these detectors must too. Mirrors the mask in validator::validate().
+const TOKEN_RE = /%%[^%\n]*%%/g;
+
+// A quoted string literal, single or double quoted (MySQL treats both as strings).
+const STRING_RE = /'(?:[^']|'')*'|"(?:[^"]|"")*"/g;
+
 /**
  * True when the SQL has a literal ? inside a quoted string literal (single or double quoted —
  * MySQL treats both as strings) — the case the auto-convert can fix (e.g. a URL such as
- * view.php?id=). A bare ? elsewhere is a real bound-parameter marker and is left for the server
- * to reject.
+ * view.php?id=). A ? inside a %%...%% token is exempt (the token is resolved away before the SQL
+ * runs). A bare ? elsewhere is a real bound-parameter marker and is left for the server to reject.
  *
  * @param {string} sql
  * @returns {boolean}
  */
-export const hasQuestionmarkInString = (sql) =>
-    /'(?:[^']|'')*\?(?:[^']|'')*'/.test(sql) || /"(?:[^"]|"")*\?(?:[^"]|"")*"/.test(sql);
+export const hasQuestionmarkInString = (sql) => {
+    const masked = sql.replace(TOKEN_RE, '');
+    return /'(?:[^']|'')*\?(?:[^']|'')*'/.test(masked) || /"(?:[^"]|"")*\?(?:[^"]|"")*"/.test(masked);
+};
 
 /**
  * Rewrite each quoted string literal (single or double quoted) containing a ? into a
@@ -45,11 +56,13 @@ export const hasQuestionmarkInString = (sql) =>
  * @returns {string}
  */
 export const rewriteQuestionmarks = (sql) =>
-    sql.replace(/'(?:[^']|'')*'|"(?:[^"]|"")*"/g, (literal) => {
-        if (!literal.includes('?')) {
-            return literal;
+    sql.replace(new RegExp(TOKEN_RE.source + '|' + STRING_RE.source, 'g'), (match) => {
+        // Token spans are matched first (and returned untouched) so a literal inside a token —
+        // the path of %%LINK(...)%% — is never rebuilt into a CONCAT the token parser cannot read.
+        if (match.startsWith('%%') || !match.includes('?')) {
+            return match;
         }
-        const parts = literal.slice(1, -1).split('?');
+        const parts = match.slice(1, -1).split('?');
         return 'CONCAT(' + parts.map(p => "'" + p + "'").join(', CHAR(63), ') + ')';
     });
 
