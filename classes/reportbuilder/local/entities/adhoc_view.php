@@ -270,6 +270,7 @@ class adhoc_view extends base {
      * routing it through a {@see \moodle_url} prefixes the site address and escapes the URL, and s()
      * escapes the visible text — so neither the path nor the value can inject markup. A `{}` in the
      * path is the slot for the url-encoded value; an empty value renders nothing (no dangling link).
+     * The link opens in a new tab (`target="_blank"`, with `rel="noopener"` to block reverse tabnabbing).
      *
      * @param string $value Raw cell value (the column stores it untransformed) — the visible link text.
      * @param string $path Stored site-relative path, with an optional `{}` value slot.
@@ -282,6 +283,6 @@ class adhoc_view extends base {
             return '';
         }
         $path = str_replace('{}', rawurlencode($key ?? $value), $path);
-        return \html_writer::link(new \moodle_url($path), s($value));
+        return \html_writer::link(new \moodle_url($path), s($value), ['target' => '_blank', 'rel' => 'noopener']);
     }
 }
