@@ -387,4 +387,39 @@ final class sql_validator_test extends \advanced_testcase {
             ],
         ];
     }
+
+    /**
+     * An off-site %%LINK()%% path is not an error — the query publishes and the column still shows
+     * its value — but the link is silently dropped by view::link_columns(). Validation warns so the
+     * author is told why instead of seeing a token that looks broken.
+     */
+    public function test_offsite_link_path_warns(): void {
+        validator::validate(
+            "SELECT %%LINK(u.id, 'https://example.com/view.php?id={}')%% AS p FROM {user} u"
+        );
+        $this->assertContains(
+            get_string('warnlinkoffsite', 'report_sql', 'https://example.com/view.php?id={}'),
+            validator::get_warnings()
+        );
+    }
+
+    /**
+     * A %%LINK()%% token whose column cannot be named — no alias, and an expression with no trailing
+     * identifier to fall back on — is skipped the same way, and warns the same way.
+     */
+    public function test_unnameable_link_column_warns(): void {
+        validator::validate("SELECT %%LINK(COUNT(*), '/user/view.php?id={}')%% FROM {user} u");
+        $this->assertContains(
+            get_string('warnlinkunnamed', 'report_sql', 'COUNT(*)'),
+            validator::get_warnings()
+        );
+    }
+
+    /**
+     * A well-formed %%LINK()%% token warns about nothing — the warning must not fire on the happy path.
+     */
+    public function test_valid_link_token_produces_no_warning(): void {
+        validator::validate("SELECT %%LINK(u.id, '/user/view.php?id={}')%% AS profile FROM {user} u");
+        $this->assertSame([], validator::get_warnings());
+    }
 }

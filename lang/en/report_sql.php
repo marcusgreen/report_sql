@@ -458,4 +458,6 @@ $string['visible'] = 'Visible';
 $string['visible_help'] = 'Controls whether this published report appears in the query listing page. When unchecked, users with the view capability cannot see it. The underlying database view and report still exist — administrators and authors with the viewall capability can still see it.
 
 For finer-grained access control, use the Audiences feature in Report Builder after publishing: open the report, go to the Audience tab, and restrict by cohort, role, or individual user.';
+$string['warnlinkoffsite'] = 'The %%LINK%% path \'{$a}\' is not site-relative, so that column will show plain text instead of a link. Use a path starting with / (for example /user/view.php?id={}) — links to other sites are not allowed.';
+$string['warnlinkunnamed'] = 'The %%LINK%% token on \'{$a}\' has no output column name, so that column will show plain text instead of a link. Give it an alias, for example %%LINK(...)%% AS profile.';
 $string['warnmysqldatefn'] = 'MySQL-only function {$a} may not work on PostgreSQL. Use a cross-database equivalent.';

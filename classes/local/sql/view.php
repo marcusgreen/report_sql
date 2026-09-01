@@ -580,9 +580,7 @@ RULES;
      *     site-relative path and the optional lower-cased key-column name (null = fill {} from own value).
      */
     public static function link_columns(string $sql): array {
-        $pattern = '/%%LINK\(\s*(' . self::TOKEN_EXPR . ')\s*(?:,\s*([A-Za-z_][A-Za-z0-9_]*)\s*)?,'
-            . '\s*\'((?:[^\']|\'\')*)\'\s*\)%%' . self::ALIAS_SUFFIX_G3 . '/i';
-        if (!preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
+        if (!preg_match_all(self::link_pattern(), $sql, $matches, PREG_SET_ORDER)) {
             return [];
         }
         $columns = [];
@@ -608,6 +606,55 @@ RULES;
             ];
         }
         return $columns;
+    }
+
+    /**
+     * The `%%LINK(display[, keycol], 'path')%%` match pattern, shared by {@see self::link_columns()}
+     * and {@see self::link_token_problems()} so the accept and explain paths can never disagree about
+     * what a token looks like.
+     *
+     * Capture groups: 1 = display expression, 2 = optional key column, 3 = path literal,
+     * 4 = the alias's opening quote (for the backreference), 5 = the alias name.
+     *
+     * @return string
+     */
+    private static function link_pattern(): string {
+        return '/%%LINK\(\s*(' . self::TOKEN_EXPR . ')\s*(?:,\s*([A-Za-z_][A-Za-z0-9_]*)\s*)?,'
+            . '\s*\'((?:[^\']|\'\')*)\'\s*\)%%' . self::ALIAS_SUFFIX_G3 . '/i';
+    }
+
+    /**
+     * Explain each `%%LINK()%%` token that {@see self::link_columns()} will skip.
+     *
+     * A skipped token is not an error — the query still publishes and the column still shows its
+     * value — but it silently loses its link, which looks like the token being broken. This reports
+     * the two reasons a token is dropped so the editor can warn the author instead:
+     *
+     *  - `offsite` — the path is not site-relative (no leading `/`, or it carries a `://` scheme).
+     *    Rejected so a report cell can never link off-site; the value is the offending path.
+     *  - `unnamed` — the output column cannot be named: no alias, and the display expression has no
+     *    trailing identifier to fall back on. The value is the display expression.
+     *
+     * @param string $sql Raw saved SQL (before placeholder resolution).
+     * @return array<int, array{reason: string, value: string}> One entry per skipped token, in
+     *     source order; empty when every token resolves to a link.
+     */
+    public static function link_token_problems(string $sql): array {
+        if (!preg_match_all(self::link_pattern(), $sql, $matches, PREG_SET_ORDER)) {
+            return [];
+        }
+        $problems = [];
+        foreach ($matches as $m) {
+            $expr  = $m[1];
+            $path  = str_replace("''", "'", $m[3]);
+            $alias = $m[5] ?? '';
+            if (!preg_match('#^/#', $path) || strpos($path, '://') !== false) {
+                $problems[] = ['reason' => 'offsite', 'value' => $path];
+            } else if ($alias === '' && !preg_match('/([A-Za-z0-9_]+)\s*$/', $expr)) {
+                $problems[] = ['reason' => 'unnamed', 'value' => trim($expr)];
+            }
+        }
+        return $problems;
     }
 
     /**

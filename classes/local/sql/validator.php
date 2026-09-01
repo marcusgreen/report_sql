@@ -150,6 +150,17 @@ class validator {
             }
         }
 
+        // A %%LINK()%% token that view::link_columns() will skip still publishes — the column just
+        // renders as plain text instead of a link, which reads as the token being broken. Warn
+        // (never reject) so the author is told why, rather than left guessing.
+        foreach (view::link_token_problems($sql) as $problem) {
+            self::$warnings[] = get_string(
+                $problem['reason'] === 'offsite' ? 'warnlinkoffsite' : 'warnlinkunnamed',
+                'report_sql',
+                $problem['value']
+            );
+        }
+
         // Single statement — reject both semicolon-separated and bare multi-statement SQL.
         if (str_contains(rtrim($stripped, "; \t\n\r"), ';')) {
             throw new \moodle_exception('errmultistatement', 'report_sql');
