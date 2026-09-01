@@ -26,7 +26,7 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['actions'] = 'Actions';
 $string['addnew'] = 'New SQL report';
-$string['createfeaturesnote'] = 'Save this query as a draft, then publish it to unlock more options — charts and per-user and per-course filters — which need the published report\'s columns to configure.';
+$string['createfeaturesnote'] = '"Publish and continue editing" to unlock more options — charts and per-user and per-course filters — which need the published report\'s columns to configure.';
 $string['ai:copied'] = 'Copied';
 $string['ai:copy'] = 'Copy';
 $string['ai:generate'] = 'Generate SQL';
@@ -338,6 +338,7 @@ $string['samples:selectnone'] = 'Select none';
 $string['samples:title'] = 'Load sample SQL reports';
 $string['samples:titlesingle'] = 'Load sample SQL report';
 $string['saveandpublish'] = 'Save and publish';
+$string['saveandpublishedit'] = 'Publish and continue editing';
 $string['savedandpublished'] = 'Changes saved and report published';
 $string['savedpublishfailed'] = 'Changes saved, but publishing failed: {$a}';
 $string['schedule'] = 'Schedule emails';

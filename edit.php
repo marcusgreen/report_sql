@@ -211,7 +211,7 @@ if ($mform->is_cancelled()) {
     // The "Save and publish" action is a one-click convenience for approvers. The capability is re-checked here
     // (not just on the form button) so a forged submit can't publish. If publishing fails the query
     // is already saved as a draft, so report the failure but keep the saved state.
-    if (!empty($data->saveandpublish) && $canpublish) {
+    if ((!empty($data->saveandpublish) || !empty($data->saveandpublishedit)) && $canpublish) {
         try {
             query::get($newid)->publish();
         } catch (\moodle_exception $e) {
@@ -235,6 +235,9 @@ if ($mform->is_cancelled()) {
             }
             $anchor = !empty($data->focusfilter) ? 'id_useridfilterheader' : 'id_chartheader';
             $publishtarget = new moodle_url('/report/sql/edit.php', $params, $anchor);
+        } else if (!empty($data->saveandpublishedit)) {
+            // Publish and continue editing: reopen this (now published) form to iterate.
+            $publishtarget = new moodle_url('/report/sql/edit.php', ['id' => $newid]);
         } else {
             $publishtarget = $returnurl;
         }

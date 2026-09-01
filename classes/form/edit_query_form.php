@@ -140,6 +140,13 @@ class edit_query_form extends moodleform {
                 'saveandpublish',
                 get_string('saveandpublish', 'report_sql')
             );
+            // Publish but stay on the form to iterate (republish, configure the just-unlocked
+            // chart / filters) without round-tripping the index. edit.php redirects back here.
+            $buttonarray[] = $mform->createElement(
+                'submit',
+                'saveandpublishedit',
+                get_string('saveandpublishedit', 'report_sql')
+            );
         }
         $buttonarray[] = $mform->createElement('cancel');
         $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
