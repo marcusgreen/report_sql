@@ -195,7 +195,7 @@ const buildEditor = (textarea, schema, fkMap) => {
 
     const view = new EditorView({state, parent: container});
 
-    initTimestampHover(view);
+    initTokenHover(view);
 
     // Let other modules (e.g. the Test-query "click-to-wrap" date buttons) replace the whole editor
     // contents. Setting textarea.value alone would not reach CodeMirror, so we dispatch a real doc
@@ -557,6 +557,16 @@ const TIMESTAMP_DEFAULT_FORMAT = 'dd-mmm-yyyy';
 /** Matches a whole %%TIMESTAMP(...)%% token — the inner text never contains a % so [^%]* is safe. */
 const TIMESTAMP_TOKEN_RE = /%%TIMESTAMP[^%]*%%/gi;
 
+/** Matches a whole %%LINK(...)%% token — the inner text never contains a % so [^%]* is safe. */
+const LINK_TOKEN_RE = /%%LINK[^%]*%%/gi;
+
+/** The %%LINK(...)%% arguments, each paired with the lang key describing it (see initTokenHover). */
+const LINK_ARGS = [
+    ['expr', 'linkargexpr'],
+    ['keycol', 'linkargkeycol'],
+    ["'path'", 'linkargpath'],
+];
+
 /** Neutral display-format tokens accepted in %%TIMESTAMP(expr, format)%% (see view::strftime_format). */
 const TIMESTAMP_FORMAT_TOKENS = [
     'dd', 'mm', 'mmm', 'mmmm', 'mon', 'month', 'yyyy', 'yy', 'ddd', 'dddd', 'hh', 'mi', 'ss',
@@ -715,40 +725,33 @@ const tokenCompletionSource = (context) => {
 };
 
 /**
- * Attach a hover tooltip that explains the optional display-format argument whenever the pointer
- * is over a %%TIMESTAMP(...)%% token.
+ * A hover kind: a regex matching one token family and a lazy builder that fills `html` from lang
+ * strings the first time the pointer lands on such a token. `html` stays null until the build
+ * resolves, so the tooltip only shows once its content is ready.
  *
- * The prebuilt codemirror-lazy bundle does not export CodeMirror's own hoverTooltip helper, so we
- * drive a lightweight tooltip from a mousemove listener + view.posAtCoords instead.
- *
- * @param {EditorView} view - The CodeMirror editor view.
+ * @returns {{re: RegExp, html: ?string, pending: boolean, build: function(): void}}
  */
-const initTimestampHover = (view) => {
-    const tooltip = document.createElement('div');
-    tooltip.className = 'rs-timestamp-hover card shadow-sm p-2';
-    tooltip.style.cssText = 'position:fixed;z-index:1080;max-width:24rem;display:none;font-size:.85rem;';
-    document.body.appendChild(tooltip);
-
-    // Build the tooltip body once, lazily, from lang strings the first time it is shown.
-    let contentReady = false;
-    const tokens = TIMESTAMP_FORMAT_TOKENS;
-    const populate = () => {
-        if (contentReady) {
+const timestampHoverKind = () => ({
+    re: TIMESTAMP_TOKEN_RE,
+    html: null,
+    pending: false,
+    build() {
+        if (this.html !== null || this.pending) {
             return;
         }
-        contentReady = true;
-        const requests = [
+        this.pending = true;
+        const tokens = TIMESTAMP_FORMAT_TOKENS;
+        getStrings([
             {key: 'tsfmthelptitle', component: 'report_sql'},
             {key: 'tsfmthelpintro', component: 'report_sql', param: TIMESTAMP_DEFAULT_FORMAT},
             {key: 'tsfmthelptokens', component: 'report_sql'},
             ...tokens.map(t => ({key: 'tsfmt' + t, component: 'report_sql'})),
-        ];
-        getStrings(requests)
+        ])
             .then(([title, intro, tokensLabel, ...glosses]) => {
                 const rows = tokens.map((t, i) =>
                     `<tr><th class="pe-2 text-nowrap"><code>${t}</code></th><td>${glosses[i]}</td></tr>`
                 ).join('');
-                tooltip.innerHTML =
+                this.html =
                     `<div class="fw-bold mb-1">${title}</div>` +
                     `<div class="mb-2">${intro}</div>` +
                     `<div class="fw-bold mb-1">${tokensLabel}</div>` +
@@ -756,20 +759,74 @@ const initTimestampHover = (view) => {
                 return null;
             })
             .catch(() => {
-                contentReady = false;
+                this.pending = false;
             });
-    };
+    },
+});
 
-    // Find the %%TIMESTAMP(...)%% token, if any, spanning document position pos.
-    const tokenAt = (text, pos) => {
-        TIMESTAMP_TOKEN_RE.lastIndex = 0;
-        let m;
-        while ((m = TIMESTAMP_TOKEN_RE.exec(text)) !== null) {
-            if (pos >= m.index && pos <= m.index + m[0].length) {
-                return true;
+/** Hover kind for %%LINK(...)%%: a title, the signature intro, and one row per argument. */
+const linkHoverKind = () => ({
+    re: LINK_TOKEN_RE,
+    html: null,
+    pending: false,
+    build() {
+        if (this.html !== null || this.pending) {
+            return;
+        }
+        this.pending = true;
+        getStrings([
+            {key: 'linkhelptitle', component: 'report_sql'},
+            {key: 'linkhelpintro', component: 'report_sql'},
+            {key: 'linkhelpargs', component: 'report_sql'},
+            ...LINK_ARGS.map(([, k]) => ({key: k, component: 'report_sql'})),
+        ])
+            .then(([title, intro, argsLabel, ...glosses]) => {
+                const rows = LINK_ARGS.map(([name], i) =>
+                    `<tr><th class="pe-2 text-nowrap"><code>${name}</code></th><td>${glosses[i]}</td></tr>`
+                ).join('');
+                this.html =
+                    `<div class="fw-bold mb-1">${title}</div>` +
+                    `<div class="mb-2">${intro}</div>` +
+                    `<div class="fw-bold mb-1">${argsLabel}</div>` +
+                    `<table class="mb-0"><tbody>${rows}</tbody></table>`;
+                return null;
+            })
+            .catch(() => {
+                this.pending = false;
+            });
+    },
+});
+
+/**
+ * Attach a hover tooltip that explains a token whenever the pointer is over a %%TIMESTAMP(...)%% or
+ * %%LINK(...)%% token — the two parameterised tokens whose arguments need more than the one-line
+ * autocomplete gloss.
+ *
+ * The prebuilt codemirror-lazy bundle does not export CodeMirror's own hoverTooltip helper, so we
+ * drive a lightweight tooltip from a mousemove listener + view.posAtCoords instead.
+ *
+ * @param {EditorView} view - The CodeMirror editor view.
+ */
+const initTokenHover = (view) => {
+    const tooltip = document.createElement('div');
+    tooltip.className = 'rs-token-hover card shadow-sm p-2';
+    tooltip.style.cssText = 'position:fixed;z-index:1080;max-width:24rem;display:none;font-size:.85rem;';
+    document.body.appendChild(tooltip);
+
+    const kinds = [timestampHoverKind(), linkHoverKind()];
+
+    // Return the hover kind whose token spans document position pos, or null.
+    const kindAt = (text, pos) => {
+        for (const kind of kinds) {
+            kind.re.lastIndex = 0;
+            let m;
+            while ((m = kind.re.exec(text)) !== null) {
+                if (pos >= m.index && pos <= m.index + m[0].length) {
+                    return kind;
+                }
             }
         }
-        return false;
+        return null;
     };
 
     const hide = () => {
@@ -778,11 +835,18 @@ const initTimestampHover = (view) => {
 
     view.dom.addEventListener('mousemove', (e) => {
         const pos = view.posAtCoords({x: e.clientX, y: e.clientY}, false);
-        if (pos === null || !tokenAt(view.state.doc.toString(), pos)) {
+        const kind = pos === null ? null : kindAt(view.state.doc.toString(), pos);
+        if (!kind) {
             hide();
             return;
         }
-        populate();
+        kind.build();
+        if (kind.html === null) {
+            // Content still loading — show it on a later move once the lang strings resolve.
+            hide();
+            return;
+        }
+        tooltip.innerHTML = kind.html;
         // Offset from the pointer and clamp to the viewport so the tooltip stays on-screen.
         const pad = 12;
         tooltip.style.display = '';
