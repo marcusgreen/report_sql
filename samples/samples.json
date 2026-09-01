@@ -45,7 +45,7 @@
         {
             "name": "Course enrolments for current user",
             "description": "show user id field and course shortname the user is enrolled on",
-            "querysql": "SELECT\r\n    ue.userid,\r\n    CONCAT('<a target=_new href=\"%%WWWROOT%%/course/view.php', chr(63), 'id=', c.id, '\">', c.shortname, '</a>') AS course\r\nFROM\r\n    {user_enrolments} ue\r\n    JOIN {enrol} e ON ue.enrolid = e.id\r\n    JOIN {course} c ON e.courseid = c.id",
+            "querysql": "SELECT\r\n    ue.userid,\r\n    c.id AS courseid,\r\n    %%LINK(c.shortname, courseid, '/course/view.php?id={}')%% AS course\r\nFROM\r\n    {user_enrolments} ue\r\n    JOIN {enrol} e ON ue.enrolid = e.id\r\n    JOIN {course} c ON e.courseid = c.id",
             "courseid": 0,
             "visible": 1,
             "chartmeta": {
