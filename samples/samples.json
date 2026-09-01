@@ -326,7 +326,7 @@
         },
         {
             "name": "Site-wide grade report (course totals and items)",
-            "description": "Final grades across every course: user, course, category, grade item (course totals are labelled '<course> - Total') and the date graded. Demonstrates %%CONTEXT_COURSE%% to scope role assignments and %%TIMESTAMP%% for the graded date.",
+            "description": "Final grades across every course: user, course, category, grade item (course totals are labelled '[course name] - Total') and the date graded. Demonstrates %%CONTEXT_COURSE%% to scope role assignments and %%TIMESTAMP%% for the graded date.",
             "querysql": "SELECT\r\n    u.firstname,\r\n    u.lastname,\r\n    c.fullname AS course,\r\n    cc.name AS category,\r\n    CASE WHEN gi.itemtype = 'course' THEN CONCAT(c.fullname, ' - Total') ELSE gi.itemname END AS item,\r\n    ROUND(gg.finalgrade, 2) AS grade,\r\n    %%TIMESTAMP(gg.timemodified, yyyy-mm-dd)%% AS graded\r\nFROM {course} c\r\nJOIN {context} ctx ON c.id = ctx.instanceid AND ctx.contextlevel = %%CONTEXT_COURSE%%\r\nJOIN {role_assignments} ra ON ra.contextid = ctx.id\r\nJOIN {user} u ON u.id = ra.userid\r\nJOIN {grade_grades} gg ON gg.userid = u.id\r\nJOIN {grade_items} gi ON gi.id = gg.itemid\r\nJOIN {course_categories} cc ON cc.id = c.category\r\nWHERE gi.courseid = c.id\r\nORDER BY u.lastname\r\nLIMIT 200",
             "courseid": 0,
             "visible": 1,
@@ -352,7 +352,7 @@
         },
         {
             "name": "User profile links: demonstrates %%LINK and %%TIMESTAMP",
-            "description": "Lists users with their username linked to their Moodle profile page, plus their last login date. Demonstrates two tokens. %%LINK(display, keycol, '/path')%%: the username is the visible text (so the column sorts and filters on the name), while the separate key column 'userid' fills the {} slot in the path, so the link keys on u.id; it is rendered safely via moodle_url + s(), replacing the fragile hand-built CONCAT('<a href>') approach, and the path must be site-relative (start with /, no scheme) or it is rejected at publish. %%TIMESTAMP(expr)%%: u.lastlogin is already an epoch integer, so the token keeps the raw value in the view and types the column as a date \u2014 it displays formatted but still sorts chronologically.",
+            "description": "<p>Lists users with their username as a clickable link to their profile page, plus the date they last logged in. Shows off two handy tokens.</p><p>%%LINK%% turns a column into a safe clickable link \u2014 you give it the text to show (the username), the column holding the id to link to, and the page to open. You get a proper link without hand-building any HTML, the reader still sees and can sort or search by the name, and Moodle keeps the link safe and correct for your site.</p><p>%%TIMESTAMP%% shows a stored date as a friendly, readable date instead of a raw number, while still sorting in true date order \u2014 so newest and oldest land where you expect. You can add a format to control how the date looks \u2014 for example %%TIMESTAMP(u.lastlogin, dd/mm/yyyy)%% or yyyy-mm-dd \u2014 so each date column reads the way you want. It works the same on both MySQL and PostgreSQL, so the report is portable across sites.</p>",
             "querysql": "SELECT\r\n    u.id AS userid,\r\n    %%LINK(username, userid, '/user/view.php?id={}')%% AS fullname,\r\n    u.email, %%TIMESTAMP(u.lastlogin)%%\r\nFROM\r\n    {user} u\r\nLIMIT 100",
             "courseid": 0,
             "visible": 1,
