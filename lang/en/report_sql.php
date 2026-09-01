@@ -26,7 +26,7 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['actions'] = 'Actions';
 $string['addnew'] = 'New SQL report';
-$string['createfeaturesnote'] = 'Save this query as a draft, then publish it to unlock more options — charts and per-user and per-course filters — which need the published report\'s columns to configure.';
+$string['createfeaturesnote'] = '"Publish and continue editing" to unlock more options — charts and per-user and per-course filters — which need the published report\'s columns to configure.';
 $string['ai:copied'] = 'Copied';
 $string['ai:copy'] = 'Copy';
 $string['ai:generate'] = 'Generate SQL';
@@ -218,7 +218,7 @@ $string['errchartnotconfigured'] = 'No chart is configured for this query. Edit 
 $string['errchartnotpublished'] = 'This query is not published. Publish it first before viewing the chart.';
 $string['errcolumnnoalias'] = 'The column "{$a}" is an expression with no name. Give every calculated or aggregate column an alias, e.g. SELECT count(*) AS total FROM course.';
 $string['errcourseidplaceholder'] = 'The SQL uses %%COURSEID%%, so this report needs a fixed course scope. Choose a course above before saving — or, to show each course its own data in a block, remove the %%COURSEID%% filter from the SQL, output the course id column, and set "Restrict to the course the block is on" instead.';
-$string['errcreateview'] = 'Could not create database view: {$a}';
+$string['errcreateview'] = '{$a}';
 $string['errdeniedcolumn'] = 'Disallowed column: {$a}';
 $string['errdeniedkeyword'] = 'Disallowed keyword: {$a}';
 $string['errdeniedtable'] = 'Disallowed table: {$a}';
@@ -338,6 +338,7 @@ $string['samples:selectnone'] = 'Select none';
 $string['samples:title'] = 'Load sample SQL reports';
 $string['samples:titlesingle'] = 'Load sample SQL report';
 $string['saveandpublish'] = 'Save and publish';
+$string['saveandpublishedit'] = 'Publish and continue editing';
 $string['savedandpublished'] = 'Changes saved and report published';
 $string['savedpublishfailed'] = 'Changes saved, but publishing failed: {$a}';
 $string['schedule'] = 'Schedule emails';
