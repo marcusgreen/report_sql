@@ -426,6 +426,17 @@ RULES;
             $sql
         ) ?? $sql;
 
+        // Per-viewer filter tokens %%VIEWER/TEACHES/PAGECOURSE(expr)%% — emit the *raw* expression
+        // `(expr)` as an ordinary output column. The view itself stays unfiltered; publish records the
+        // produced column onto the query (useridcolumn / coursecolumn / pagecoursecolumn), so a run-time
+        // row filter keys on it (see self::filter_token_columns() and query::publish()). No columnsmeta /
+        // display callback — these tokens change which rows are returned, not how a cell is rendered.
+        $sql = preg_replace_callback(
+            '/%%(?:' . implode('|', self::FILTER_TOKENS) . ')\(\s*(' . self::TOKEN_EXPR . ')\s*\)%%/i',
+            static fn(array $m): string => '(' . $m[1] . ')',
+            $sql
+        ) ?? $sql;
+
         return preg_replace_callback(
             '/\{([a-z0-9_]+)\}/i',
             static fn(array $m): string => $CFG->prefix . $m[1],
@@ -550,6 +561,73 @@ RULES;
             $columns[strtolower($name)] = $mode;
         }
         return $columns;
+    }
+
+    /**
+     * The per-viewer filter tokens (`%%VIEWER%%` / `%%TEACHES%%` / `%%PAGECOURSE%%`) that mark a
+     * select-list column as a run-time row filter rather than driving a display callback. Each is the
+     * inline form of one edit-form dropdown; publish adopts the marked column onto the matching query
+     * record field (see {@see \report_sql\local\query::publish()}).
+     */
+    public const FILTER_TOKENS = ['VIEWER', 'TEACHES', 'PAGECOURSE'];
+
+    /**
+     * Find the output columns produced by a per-viewer filter token (`%%VIEWER(expr)%%`,
+     * `%%TEACHES(expr)%%`, `%%PAGECOURSE(expr)%%`) in a saved query.
+     *
+     * Unlike {@see self::timestamp_columns()} / {@see self::case_columns()} these drive no display
+     * callback: the token marks the select-list column that a run-time row filter keys on, and publish
+     * records it on the query (per-user / teacher-course / page-course column). The output column name
+     * is the alias when present (`… AS foo` or the implicit `… foo` form), else the trailing identifier
+     * of a simple `a.b` / `b` expression; a token too complex to name without an alias yields no entry,
+     * which {@see \report_sql\local\query::publish()} treats as a hard error (rather than silently
+     * publishing a report whose intended row scope is not applied).
+     *
+     * A self-contained pattern (not the shared ALIAS_SUFFIX) because only one group — the expression —
+     * precedes the alias here: group 1 = expr, group 2 = optional alias quote, group 3 = alias name.
+     *
+     * @param string $sql Raw saved SQL (before placeholder resolution).
+     * @param string $token One of self::FILTER_TOKENS (VIEWER | TEACHES | PAGECOURSE).
+     * @return array<string, true> Lower-cased output column name => true (one entry per named token).
+     */
+    public static function filter_token_columns(string $sql, string $token): array {
+        $pattern = '/%%' . preg_quote($token, '/') . '\(\s*(' . self::TOKEN_EXPR . ')\s*\)%%'
+            . '(?:\s+(?:AS\s+)?(?!(?:FROM|WHERE|GROUP|ORDER|HAVING|LIMIT|UNION)\b)'
+            // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
+            . '(["`]?)([A-Za-z0-9_]+)\2)?/i';
+        if (!preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
+            return [];
+        }
+        $columns = [];
+        foreach ($matches as $m) {
+            $expr  = $m[1];
+            $alias = $m[3] ?? '';
+            if ($alias !== '') {
+                $name = $alias;
+            } else if (preg_match('/([A-Za-z0-9_]+)\s*$/', $expr, $im)) {
+                $name = $im[1];
+            } else {
+                continue;
+            }
+            $columns[strtolower($name)] = true;
+        }
+        return $columns;
+    }
+
+    /**
+     * Count the filter tokens of one kind in a saved query, named or not.
+     *
+     * {@see self::filter_token_columns()} silently drops a token it cannot name; comparing this raw
+     * count to that array's size lets {@see \report_sql\local\query::publish()} tell "no token" (0)
+     * from "a token that could not be resolved to an output column" (count &gt; named) and reject the
+     * latter rather than publish a report whose intended row scope is not applied.
+     *
+     * @param string $sql Raw saved SQL (before placeholder resolution).
+     * @param string $token One of self::FILTER_TOKENS (VIEWER | TEACHES | PAGECOURSE).
+     * @return int Number of %%TOKEN(…)%% tokens.
+     */
+    public static function filter_token_count(string $sql, string $token): int {
+        return preg_match_all('/%%' . preg_quote($token, '/') . '\s*\(/i', $sql);
     }
 
     /**

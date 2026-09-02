@@ -56,6 +56,32 @@
             }
         },
         {
+            "name": "My course enrolments: demonstrates %%VIEWER",
+            "description": "Each person who opens this report sees only their own course enrolments. Demonstrates the %%VIEWER(expr)%% token: it marks the user-id column (ue.userid) as the per-viewer filter, so at run time the report is scoped to whoever is logged in (column = their id) and that column is hidden from the output. Unlike the Per-user filter dropdown, %%VIEWER%% travels inside the SQL, so this scoping survives export/import. Combined here with %%LINK%% (clickable course) and %%TIMESTAMP%% (enrolment date), all cross-database.",
+            "querysql": "SELECT\r\n    %%LINK(c.shortname, courseid, '/course/view.php?id={}')%% AS course,\r\n    %%TIMESTAMP(ue.timecreated)%% AS enrolled,\r\n    %%VIEWER(ue.userid)%% AS viewerid,\r\n    c.id AS courseid\r\nFROM\r\n    {user_enrolments} ue\r\n    JOIN {enrol} e ON ue.enrolid = e.id\r\n    JOIN {course} c ON e.courseid = c.id",
+            "courseid": 0,
+            "visible": 1,
+            "chartmeta": {
+                "type": "none",
+                "xcol": "",
+                "ycol": "",
+                "rowlimit": ""
+            }
+        },
+        {
+            "name": "Enrolments in courses I teach: demonstrates %%TEACHES",
+            "description": "Enrolment count per course, but each viewer sees only the courses they teach (editing teacher / teacher / manager). Demonstrates the %%TEACHES(expr)%% token: it marks the course-id column, and at run time rows are limited to the viewer's taught courses (column IN their courses). Unlike %%VIEWER%%, the marked course column stays visible (a teacher may span several courses). Publish to a wide staff audience and each teacher still sees only their own courses. Travels inside the SQL, so this scoping survives export/import.",
+            "querysql": "SELECT\r\n    %%LINK(c.fullname, courseid, '/course/view.php?id={}')%% AS course,\r\n    COUNT(DISTINCT ue.userid) AS enrolments,\r\n    %%TEACHES(c.id)%% AS courseid\r\nFROM\r\n    {course} c\r\n    JOIN {enrol} e ON e.courseid = c.id\r\n    JOIN {user_enrolments} ue ON ue.enrolid = e.id\r\nGROUP BY\r\n    c.id, c.fullname",
+            "courseid": 0,
+            "visible": 1,
+            "chartmeta": {
+                "type": "none",
+                "xcol": "",
+                "ycol": "",
+                "rowlimit": ""
+            }
+        },
+        {
             "name": "Distinct enrolments per category and sub categories: demonstrates %%CONTEXT_COURSE%%",
             "description": "Count number of distinct learners and teachers enrolled per category (including all its sub categories)",
             "querysql": "SELECT\r\n    COUNT(DISTINCT lra.userid) AS learners,\r\n    COUNT(DISTINCT tra.userid) AS teachers\r\nFROM\r\n    {course} c\r\n    LEFT JOIN {context} ctx ON c.id = ctx.instanceid AND ctx.contextlevel = %%CONTEXT_COURSE%%\r\n    JOIN {role_assignments} lra ON lra.contextid = ctx.id\r\n    JOIN {role_assignments} tra ON tra.contextid = ctx.id\r\n    JOIN {course_categories} cats ON c.category = cats.id\r\nWHERE\r\n    cats.path LIKE CONCAT('%/', (SELECT id FROM {course_categories} WHERE name = 'Category 1' LIMIT 1), '/%')\r\n    AND lra.roleid = (SELECT id FROM {role} WHERE shortname = 'student')\r\n    OR tra.roleid = (SELECT id FROM {role} WHERE shortname = 'editingteacher')",
@@ -354,6 +380,45 @@
             "name": "User profile links: demonstrates %%LINK and %%TIMESTAMP",
             "description": "<p>Lists users with their username as a clickable link to their profile page, plus the date they last logged in. Shows off two handy tokens.</p><p>%%LINK%% turns a column into a safe clickable link \u2014 you give it the text to show (the username), the column holding the id to link to, and the page to open. You get a proper link without hand-building any HTML, the reader still sees and can sort or search by the name, and Moodle keeps the link safe and correct for your site.</p><p>%%TIMESTAMP%% shows a stored date as a friendly, readable date instead of a raw number, while still sorting in true date order \u2014 so newest and oldest land where you expect. You can add a format to control how the date looks \u2014 for example %%TIMESTAMP(u.lastlogin, dd/mm/yyyy)%% or yyyy-mm-dd \u2014 so each date column reads the way you want. It works the same on both MySQL and PostgreSQL, so the report is portable across sites.</p>",
             "querysql": "SELECT\r\n    u.id AS userid,\r\n    %%LINK(username, userid, '/user/view.php?id={}')%% AS fullname,\r\n    u.email, %%TIMESTAMP(u.lastlogin)%%\r\nFROM\r\n    {user} u\r\nLIMIT 100",
+            "courseid": 0,
+            "visible": 1,
+            "chartmeta": {
+                "type": "none",
+                "xcol": "",
+                "ycol": "",
+                "rowlimit": ""
+            }
+        },
+        {
+            "name": "My forum posts: demonstrates %%VIEWER()%%",
+            "description": "Every forum post authored by whoever opens the report. Demonstrates the %%VIEWER(expr)%% token: it marks the user-id column, so the report is scoped per viewer at run time and the marked column is hidden from the output. The token resolves to the bare expression at publish, so the view itself stays unfiltered — the per-user filter is applied when the report is viewed. Give the marked column an alias so it becomes a named output column.",
+            "querysql": "SELECT\r\n    %%VIEWER(fp.userid)%% AS viewerid,\r\n    fp.subject,\r\n    %%TIMESTAMP(fp.created, 'dd/mm/yyyy')%% AS posted\r\nFROM\r\n    {forum_posts} fp\r\nORDER BY\r\n    fp.created DESC",
+            "courseid": 0,
+            "visible": 1,
+            "chartmeta": {
+                "type": "none",
+                "xcol": "",
+                "ycol": "",
+                "rowlimit": ""
+            }
+        },
+        {
+            "name": "Courses I teach: demonstrates %%TEACHES()%% + %%LINK()%%",
+            "description": "<p>Courses the viewer teaches, each name a clickable link. %%TEACHES(c.id)%% scopes the report per viewer to their taught courses; %%LINK(expr, keycol, 'path')%% links the name, filling the {} slot from the courseid column.</p><p>After publishing, hide courseid in the Report Builder editor — the link and the scoping both read it from the view, so nothing breaks when it is hidden.</p>",
+            "querysql": "SELECT\r\n    %%LINK(c.fullname, courseid, '/course/view.php?id={}')%% AS course,\r\n    %%TEACHES(c.id)%% AS courseid\r\nFROM\r\n    {course} c\r\nWHERE\r\n    c.id > 1\r\nORDER BY\r\n    c.fullname",
+            "courseid": 0,
+            "visible": 1,
+            "chartmeta": {
+                "type": "none",
+                "xcol": "",
+                "ycol": "",
+                "rowlimit": ""
+            }
+        },
+        {
+            "name": "This course's assignments: demonstrates %%PAGECOURSE()%%",
+            "description": "Assignments belonging to the course the report is embedded on. Demonstrates the %%PAGECOURSE(expr)%% token: it marks the course-id column and scopes the rows to the course of the page the block/embed sits on. It only bites in the block/filter embed — the standalone Report Builder viewer has no current course, so there it shows all rows. The token resolves to the bare expression at publish; give the marked column an alias so it becomes a named output column.",
+            "querysql": "SELECT\r\n    %%PAGECOURSE(c.id)%% AS courseid,\r\n    c.fullname AS course,\r\n    a.name AS assignment,\r\n    %%TIMESTAMP(a.duedate, 'dd/mm/yyyy')%% AS due\r\nFROM\r\n    {assign} a\r\n    JOIN {course} c ON c.id = a.course\r\nORDER BY\r\n    a.duedate",
             "courseid": 0,
             "visible": 1,
             "chartmeta": {

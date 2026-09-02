@@ -273,8 +273,59 @@ The plugin supports a small, fixed set of placeholder forms in your SQL. Everyth
 | `%%CASE(expr, mode)%%` | `expr` (a text column) displayed in `upper`, `lower`, `title` or `sentence` case | Cross-database; stored value unchanged, so it still sorts/filters on the original text |
 | `%%GROUP_CONCAT([DISTINCT ]expr[, 'sep'])%%` | Aggregates the grouped rows of `expr` into one delimited string (default separator `,`) | Cross-database; use inside a query with `GROUP BY` |
 | `%%LINK(expr, 'path')%%` | Renders the cell as a link to a **site-relative** `path`; `{}` is the value slot | Display only; stored value unchanged, so it still sorts/filters on the original; on-site targets only |
+| `%%VIEWER(expr)%%` | Marks the output column holding a user id as the **per-viewer filter** — each person sees only their own rows | Applied per viewer at run time; column is hidden from output. Inline form of the [Per-user filter](#per-user-filter) |
+| `%%TEACHES(expr)%%` | Marks the output column holding a course id as the **teacher-course filter** — each viewer sees only courses they teach | Applied per viewer at run time; column stays visible. Inline form of the *Restrict to courses the viewer teaches* dropdown |
+| `%%PAGECOURSE(expr)%%` | Marks the output column holding a course id as the **page-course filter** — a block/embed shows only the course it sits on | Applied from the page course; ignored in the standalone report viewer. Inline form of the *Restrict to the course the block is on* dropdown |
 
 All are substituted once, when the view is built — the view is a fixed `CREATE VIEW`, so these bake a value in; they are **not** per-request parameters.
+
+### `%%VIEWER(expr)%%` — scope to the viewing user
+
+There is deliberately no `%%USERID%%` placeholder: a placeholder bakes a single value into a view that every viewer shares, so it would freeze one user's id for everyone. Instead, mark the output column that holds a user id with `%%VIEWER(...)%%`:
+
+```sql
+SELECT %%VIEWER(fp.userid)%% AS viewerid, fp.subject, fp.created
+FROM   {forum_posts} fp
+```
+
+At publish the token resolves to the bare column `(fp.userid)` — the view itself stays **unscoped** and holds every viewer's rows. The plugin records that column as the report's [Per-user filter](#per-user-filter), so at view time each person sees only rows where it equals their own id (`column = $USER->id`), and the column is **hidden from output**. This is exactly the per-user filter you can also set from the form dropdown after publishing — the token just declares it inline in the SQL.
+
+Rules:
+
+- **Give the marked column an alias** (`AS viewerid`) so it becomes a named view column. A bare `%%VIEWER(fp.userid)%%` also works (named after the trailing identifier, `userid`), but an alias is clearer and more reliable.
+- **One per report.** More than one `%%VIEWER()%%` token, or a token whose expression can't be named (a complex expression with no alias), is a publish error — publishing is stopped rather than leave the report unscoped and show everyone all rows.
+- The token **wins over** the form's *Restrict to viewing user* dropdown: if both are set, the token's column is used.
+
+### `%%TEACHES(expr)%%` — scope to courses the viewer teaches
+
+Sibling of `%%VIEWER%%`, for **teachers**: mark the output column that holds a course id, and each viewer sees only rows for the courses they teach (editing teacher / teacher / manager):
+
+```sql
+SELECT
+    c.fullname AS course,
+    COUNT(ue.id) AS enrolments,
+    %%TEACHES(c.id)%% AS courseid
+FROM   {course} c
+JOIN   {enrol} e            ON e.courseid = c.id
+JOIN   {user_enrolments} ue ON ue.enrolid = e.id
+GROUP  BY c.id, c.fullname
+```
+
+At run time rows are limited to the viewer's taught courses (`courseid IN (their courses)`); a viewer who teaches nothing sees no rows. Publish to a wide staff audience and each teacher still sees only their own courses. Unlike `%%VIEWER%%`, the marked column **stays visible** (a teacher may span several courses). Same rules as `%%VIEWER%%`: alias it, one per report, wins over the *Restrict to courses the viewer teaches* dropdown.
+
+### `%%PAGECOURSE(expr)%%` — scope a block to its course
+
+For a report shown in a **block** (or an inline embed) on a course page: mark the output column that holds a course id, and the block shows only rows for the course the page is on.
+
+```sql
+SELECT u.firstname, u.lastname, %%PAGECOURSE(c.id)%% AS courseid
+FROM   {course} c
+JOIN   {enrol} e            ON e.courseid = c.id
+JOIN   {user_enrolments} ue ON ue.enrolid = e.id
+JOIN   {user} u             ON u.id = ue.userid
+```
+
+The filter comes from the **page's course**, so the same block on different course pages shows each course its own data. Off a course page — the Dashboard, the site front page, or the standalone report viewer (`/reportbuilder/view.php`) — no page-course filter is applied. Same rules as `%%VIEWER%%` (alias it, one per report, wins over the *Restrict to the course the block is on* dropdown). Note this token **only** affects the block/embed; it is the inline form of a filter that already travels through export/import, so here the token is a convenience rather than a portability fix.
 
 ### `{tablename}` — table names
 
@@ -625,6 +676,8 @@ Under **Per-user filter → Restrict to viewing user**, pick the output column t
 The chosen column is hidden from all output (its value is always the viewer's own id), so it is not offered as a chart axis.
 
 **Example** — a "my forum posts" report with `SELECT fp.userid, fp.subject, fp.created …`: set the per-user filter column to **userid**, and each user sees only their own posts.
+
+This is the supported way to scope by the logged-in user. You can also declare it **inline in the SQL** with the [`%%VIEWER(expr)%%`](#viewerexpr--scope-to-the-viewing-user) token instead of this dropdown. There is no `%%USERID%%` placeholder, because a placeholder bakes one value into a shared view, whereas this filter is applied per viewer at view time.
 
 ---
 

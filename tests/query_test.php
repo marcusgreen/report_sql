@@ -158,6 +158,79 @@ final class query_test extends \advanced_testcase {
         $this->assertSame('userid', $meta['fullname']['linkkey']);
     }
 
+    /**
+     * A %%VIEWER(expr)%% token is adopted as the per-user filter at publish: useridcolumn is set to
+     * the produced (aliased) column, so the datasource scopes rows to the viewer at run time.
+     */
+    public function test_publish_viewer_token_sets_useridcolumn(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $id = query::save($this->formdata([
+            'name'     => 'Per-viewer view',
+            'querysql' => 'SELECT %%VIEWER(id)%% AS viewerid, username FROM {user}',
+        ]));
+        query::get($id)->publish();
+
+        $record = $DB->get_record(query::TABLE, ['id' => $id], '*', MUST_EXIST);
+        $this->assertSame('viewerid', $record->useridcolumn);
+    }
+
+    /**
+     * A %%TEACHES(expr)%% token is adopted as the teacher-course filter (coursecolumn) at publish.
+     */
+    public function test_publish_teaches_token_sets_coursecolumn(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $id = query::save($this->formdata([
+            'name'     => 'Teacher courses view',
+            'querysql' => 'SELECT %%TEACHES(id)%% AS courseid, fullname FROM {course}',
+        ]));
+        query::get($id)->publish();
+
+        $record = $DB->get_record(query::TABLE, ['id' => $id], '*', MUST_EXIST);
+        $this->assertSame('courseid', $record->coursecolumn);
+    }
+
+    /**
+     * A %%PAGECOURSE(expr)%% token is adopted as the page-course filter (pagecoursecolumn) at publish.
+     */
+    public function test_publish_pagecourse_token_sets_pagecoursecolumn(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $id = query::save($this->formdata([
+            'name'     => 'Page course view',
+            'querysql' => 'SELECT %%PAGECOURSE(id)%% AS courseid, fullname FROM {course}',
+        ]));
+        query::get($id)->publish();
+
+        $record = $DB->get_record(query::TABLE, ['id' => $id], '*', MUST_EXIST);
+        $this->assertSame('courseid', $record->pagecoursecolumn);
+    }
+
+    /**
+     * More than one %%VIEWER()%% token is a hard publish error — useridcolumn is single-valued, so an
+     * ambiguous per-user filter must be rejected rather than published unscoped.
+     */
+    public function test_publish_viewer_token_ambiguous_throws(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $id = query::save($this->formdata([
+            'name'     => 'Ambiguous viewer view',
+            'querysql' => 'SELECT %%VIEWER(id)%% AS a, %%VIEWER(id)%% AS b, username FROM {user}',
+        ]));
+
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessageMatches('/only one/');
+        query::get($id)->publish();
+    }
+
     public function test_publish_binds_queryid_config_to_report(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
