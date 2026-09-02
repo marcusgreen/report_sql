@@ -128,7 +128,7 @@ Click **Save changes** to store. Editing the SQL of a published view reverts it 
 
 - A single `SELECT` or `WITH … SELECT`. No `INSERT`, `UPDATE`, `DELETE`, or multiple statements.
 - No semicolons.
-- You do **not** need to type the `{}` braces. Just write the bare table name (e.g. `user`, `course`) and the plugin wraps it in Moodle's `{tablename}` syntax on save, resolving it to the real prefixed table name (`mdl_user`, …) at runtime. Writing the braces yourself (`{user}`) also works if you prefer.
+- You do **not** need to type the `{}` braces. Just write the bare table name (e.g. `user`, `course`) and the plugin wraps it in Moodle's `{tablename}` syntax on save, resolving it to the real prefixed table name (`mdl_user`, …) at runtime. Writing the braces yourself (`{user}`) also works if you prefer. By default the editor shows table names **without** braces; an admin can switch this on with the **Show table braces in editor** setting (see [Admin settings](#admin-settings)).
 
 ### Always alias tables
 
@@ -272,7 +272,7 @@ The plugin supports a small, fixed set of placeholder forms in your SQL. Everyth
 | `%%TIMESTAMP(expr[, format])%%` | `expr` (an epoch column) as a date, optionally formatted | Cross-database; date-sortable |
 | `%%CASE(expr, mode)%%` | `expr` (a text column) displayed in `upper`, `lower`, `title` or `sentence` case | Cross-database; stored value unchanged, so it still sorts/filters on the original text |
 | `%%GROUP_CONCAT([DISTINCT ]expr[, 'sep'])%%` | Aggregates the grouped rows of `expr` into one delimited string (default separator `,`) | Cross-database; use inside a query with `GROUP BY` |
-| `%%LINK(expr, 'path')%%` | Renders the cell as a link to a **site-relative** `path`; `{}` is the value slot | Display only; stored value unchanged, so it still sorts/filters on the original; on-site targets only |
+| `%%LINK(expr[, keycol], 'path')%%` | Renders the cell as a link to a **site-relative** `path`; `{}` is the value slot, filled from `expr` or the optional `keycol` output column | Display only; stored value unchanged, so it still sorts/filters on the original; on-site targets only |
 | `%%VIEWER(expr)%%` | Marks the output column holding a user id as the **per-viewer filter** — each person sees only their own rows | Applied per viewer at run time; column is hidden from output. Inline form of the [Per-user filter](#per-user-filter) |
 | `%%TEACHES(expr)%%` | Marks the output column holding a course id as the **teacher-course filter** — each viewer sees only courses they teach | Applied per viewer at run time; column stays visible. Inline form of the *Restrict to courses the viewer teaches* dropdown |
 | `%%PAGECOURSE(expr)%%` | Marks the output column holding a course id as the **page-course filter** — a block/embed shows only the course it sits on | Applied from the page course; ignored in the standalone report viewer. Inline form of the *Restrict to the course the block is on* dropdown |
@@ -329,7 +329,7 @@ The filter comes from the **page's course**, so the same block on different cour
 
 ### `{tablename}` — table names
 
-Curly-brace table syntax, resolved to the prefixed table name (`{user}` → `mdl_user`) when the view is built. **Braces are optional** — write the bare name (`user`) and the editor adds them on save. Type them yourself only if you prefer.
+Curly-brace table syntax, resolved to the prefixed table name (`{user}` → `mdl_user`) when the view is built. **Braces are optional** — write the bare name (`user`) and the editor adds them on save. Type them yourself only if you prefer. The editor shows names brace-free by default; an admin can turn on the **Show table braces in editor** setting (see [Admin settings](#admin-settings)) to display the `{table}` braces instead.
 
 ```sql
 SELECT u.id, u.firstname FROM user u WHERE u.deleted = 0
@@ -545,6 +545,16 @@ JOIN {course} c ON c.id = u.id      -- illustrative
 ```
 
 Each `userid` cell shows the id and links to `/user/view.php?id=<that id>`; each `courseid` cell links to the course. A path with **no** `{}` links every row to the same page.
+
+**Show one column, link on another (`keycol` form).** Use the 3-argument `%%LINK(display, keycol, 'path')%%` to display one column but fill `{}` from a *different* output column — e.g. show a course's full name but link on its id:
+
+```sql
+SELECT %%LINK(c.fullname, courseid, '/course/view.php?id={}')%% AS course,
+       %%TEACHES(c.id)%% AS courseid
+FROM {course} c
+```
+
+`keycol` names another selected output column (`courseid` here); its value fills `{}`. The key column need not stay visible — the link reads it from the view, so you can remove `courseid` from the report after publishing and the link still works.
 
 **Why a token instead of building an `<a href>` in a `CONCAT`?**
 
@@ -880,6 +890,7 @@ Common messages:
 | Table denylist | Built-in protected tables (`config`, `sessions`, token, password-history and similar) | Comma / space / newline separated table names that may never be queried. Fully editable — removing an entry allows that table, so edit with care |
 | SQL syntax highlight and autocomplete | On | CodeMirror 6 editor with keyword/table/column autocomplete from the live database |
 | Show last modified column | On | Show a sortable **Last modified** column in the report sources list |
+| Show table braces in editor | Off | Show Moodle `{table}` braces around table names in the SQL editor. Off = tables shown brace-free (braces still added automatically on save). Purely a display preference |
 | Dropdown filter threshold | `30` | A text column with this many distinct values or fewer (measured at publish) gets a dropdown filter instead of free-text. `0` disables (all text columns stay free-text) |
 | Dropdown filter row ceiling | `100000` | Skip dropdown-filter detection when a published view has more rows than this, so a large report avoids a per-column distinct scan at publish (its text columns stay free-text). `0` = always probe. Only relevant when the threshold above is non-zero |
 | AI SQL generation | Off | Show the AI question box on the edit form. Requires **local_sqlchat** installed and configured |
