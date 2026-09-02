@@ -157,6 +157,51 @@ final class embed_renderer_test extends \advanced_testcase {
         $this->assertStringContainsString('>ada<', $html);
     }
 
+    public function test_render_table_hides_listed_columns(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $query = $this->published('SELECT id, firstname FROM {user}');
+        $html = embed_renderer::render_table($query, [
+            ['id' => 1, 'firstname' => 'Ada'],
+        ], ['id']);
+
+        // The hidden column's header and cell are gone; the other column is untouched.
+        $this->assertStringNotContainsString('>id<', $html);
+        $this->assertStringContainsString('firstname', $html);
+        $this->assertStringContainsString('Ada', $html);
+    }
+
+    public function test_render_table_hide_is_case_insensitive(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $query = $this->published('SELECT id, firstname FROM {user}');
+        $html = embed_renderer::render_table($query, [
+            ['id' => 1, 'firstname' => 'Ada'],
+        ], ['FirstName']);
+
+        $this->assertStringNotContainsString('Ada', $html);
+        $this->assertStringContainsString('>id<', $html);
+    }
+
+    public function test_render_table_hidden_keycol_still_resolves_link(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // Hiding the keycol column must not break a %%LINK%% that keys on it — the value is still
+        // read from the row, only its own column is dropped from display.
+        $query = $this->published(
+            'SELECT id AS userid, '
+            . "%%LINK(username, userid, '/user/view.php?id={}')%% AS who FROM {user}"
+        );
+        $html = embed_renderer::render_table($query, [['userid' => 42, 'who' => 'ada']], ['userid']);
+
+        $this->assertStringContainsString('/user/view.php?id=42', $html);
+        $this->assertStringContainsString('>ada<', $html);
+        $this->assertStringNotContainsString('>userid<', $html);
+    }
+
     public function test_render_auto_falls_back_to_table_without_chart_config(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
