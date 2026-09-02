@@ -96,9 +96,13 @@ $mform = new edit_query_form(null, [
 
 // Consolidate form defaults into one object so AI generation can override querysql.
 $formdefaults = null;
+// Whether to show Moodle {table} braces in the editor. When off (default), braces are stripped for
+// display and auto_brace() re-adds them on save; when on, the stored braced SQL is shown as-is.
+$showbraces = (bool) get_config('report_sql', 'showbraces');
 if ($existing) {
-    // Display SQL without {} table braces; auto_brace() re-adds them on save.
-    $existing->querysql = validator::strip_braces((string) $existing->querysql);
+    if (!$showbraces) {
+        $existing->querysql = validator::strip_braces((string) $existing->querysql);
+    }
     // Expand the stored audience choice into the flat form fields.
     foreach (report_visibility::explode_audiencemeta($existing->audiencemeta ?? null) as $key => $value) {
         $existing->$key = $value;
@@ -137,7 +141,9 @@ if ($aisqlchatavailable && $aiaction === 'generate' && $aiquestion !== '') {
         // local_sqlchat itself knows nothing about these tokens.
         $airesult = \local_sqlchat\api::generate_sql($prompt, $context->id, view::ai_prompt_rules());
         $mergedata = $formdefaults ? (array) $formdefaults : [];
-        $mergedata['querysql'] = validator::strip_braces($airesult->sql);
+        $mergedata['querysql'] = $showbraces
+            ? $airesult->sql
+            : validator::strip_braces($airesult->sql);
         // Make up a name/description when none exist yet, so the generated query is immediately
         // saveable (name is a required field). A "fix this SQL error" prompt is meaningless as a
         // name, so in that case derive both from the meaning of the generated SQL instead.
