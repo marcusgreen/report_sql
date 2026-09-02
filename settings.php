@@ -101,6 +101,13 @@ if ($hassiteconfig) {
     ));
 
     $settings->add(new admin_setting_configcheckbox(
+        'report_sql/showbraces',
+        get_string('settings:showbraces', 'report_sql'),
+        get_string('settings:showbraces_desc', 'report_sql'),
+        0
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
         'report_sql/showlastmodified',
         get_string('settings:showlastmodified', 'report_sql'),
         get_string('settings:showlastmodified_desc', 'report_sql'),

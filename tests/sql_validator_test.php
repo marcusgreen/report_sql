@@ -104,6 +104,22 @@ final class sql_validator_test extends \advanced_testcase {
         $this->assertNotEmpty(validator::validate('SELECT 1 /* harmless */'));
     }
 
+    public function test_auto_brace_is_idempotent(): void {
+        // Safety net for the "Show table braces in editor" setting: when braced SQL is shown in the
+        // editor and re-saved, auto_brace() must not double-brace already-braced tables.
+        $once = validator::auto_brace('SELECT id FROM user JOIN course ON course.id = user.id');
+        $this->assertSame($once, validator::auto_brace($once));
+        $this->assertStringNotContainsString('{{', $once);
+        $this->assertStringContainsString('{user}', $once);
+        $this->assertStringContainsString('{course}', $once);
+    }
+
+    public function test_strip_braces_round_trips_with_auto_brace(): void {
+        // Displaying braced SQL brace-free and re-bracing on save must return the original braced form.
+        $braced = 'SELECT id FROM {user} u JOIN {course} c ON c.id = u.id';
+        $this->assertSame($braced, validator::auto_brace(validator::strip_braces($braced)));
+    }
+
     public function test_string_literal_does_not_evade_keyword_scan(): void {
         // String literals are blanked before scan, so "DROP" inside a literal won't trigger.
         $this->assertNotEmpty(validator::validate("SELECT 'DROP TABLE x' AS s"));
