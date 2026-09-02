@@ -75,18 +75,25 @@ class embed_renderer {
      *
      * @param query $query The bound query (for column display metadata).
      * @param array $rows
+     * @param string[] $hide Output column names to omit from display (case-insensitive). The rows
+     *     still carry them, so a %%LINK%% keyed on a hidden column still resolves.
      * @return string
      */
-    public static function render_table(query $query, array $rows): string {
+    public static function render_table(query $query, array $rows, array $hide = []): string {
         if (!$rows) {
             return html_writer::tag('p', get_string('norows', 'report_sql'), ['class' => 'text-muted']);
         }
         // Per-column display metadata, keyed lower-case so the lookup is case-insensitive against the
         // row keys.
         $meta = array_change_key_case($query->columns_meta());
+        // Lower-cased lookup set of columns to skip from display.
+        $hideset = array_flip(array_map('strtolower', $hide));
 
         $table = new html_table();
-        $table->head = array_map('s', array_keys($rows[0]));
+        $table->head = array_map('s', array_values(array_filter(
+            array_keys($rows[0]),
+            static fn($c) => !isset($hideset[strtolower((string) $c)])
+        )));
         $table->attributes['class'] = 'table table-sm';
         foreach ($rows as $row) {
             $cells = [];
@@ -94,6 +101,10 @@ class embed_renderer {
             // column whose value fills the path's {} slot).
             $rowlc = array_change_key_case($row);
             foreach ($row as $col => $v) {
+                if (isset($hideset[strtolower((string) $col)])) {
+                    // Hidden column: skip its cell but leave it in $rowlc for %%LINK%% keycol lookup.
+                    continue;
+                }
                 $m = $meta[strtolower((string) $col)] ?? [];
                 if (($m['type'] ?? '') === 'timestamp' && empty($m['link'])) {
                     // Raw epoch → formatted date, using the column's saved format (else the default).
