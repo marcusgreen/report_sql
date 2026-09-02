@@ -261,9 +261,12 @@ class validator {
      * int, per dialect), %%CASE(expr, mode)%% (text column → upper/lower/title/sentence case,
      * applied per-viewer as a display callback), %%GROUP_CONCAT([DISTINCT ]expr[, sep])%%
      * (aggregate → delimited string: MySQL GROUP_CONCAT / Postgres string_agg) and
-     * %%LINK(expr, 'path')%% (render the cell as a link to a site-relative path, applied per-viewer
-     * as a display callback) tokens are matched by shape; their inner expression is resolved in
-     * {@see \report_sql\local\sql\view::resolve_placeholders()}.
+     * %%LINK(expr, 'path')%% (render the cell as a link to a site-relative path, applied per-viewer as a
+     * display callback) and the per-viewer filter tokens %%VIEWER(expr)%% / %%TEACHES(expr)%% /
+     * %%PAGECOURSE(expr)%% (mark a select-list column as a run-time row filter — scope to the viewing
+     * user / to courses the viewer teaches / to the course the block sits on, see
+     * {@see \report_sql\local\query::publish()}) tokens are matched by shape; their inner expression is
+     * resolved in {@see \report_sql\local\sql\view::resolve_placeholders()}.
      *
      * @param string $token A token captured by the %%..%% scan, including the surrounding %%.
      * @return bool
@@ -278,7 +281,10 @@ class validator {
                 return true;
             }
         }
-        return (bool) preg_match('/^%%(?:TIMESTAMP|EPOCH|CASE|GROUP_CONCAT|LINK)\(.+\)%%$/i', $token);
+        return (bool) preg_match(
+            '/^%%(?:TIMESTAMP|EPOCH|CASE|GROUP_CONCAT|LINK|VIEWER|TEACHES|PAGECOURSE)\(.+\)%%$/i',
+            $token
+        );
     }
 
     /**

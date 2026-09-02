@@ -798,6 +798,15 @@ class query {
 
         $meta = self::build_columnsmeta($columns, $this->sql(), $viewname);
 
+        // The per-viewer filter tokens mark a select-list column as a run-time row filter and are the
+        // inline form of the edit-form dropdowns: %%VIEWER%%→useridcolumn, %%TEACHES%%→coursecolumn,
+        // %%PAGECOURSE%%→pagecoursecolumn. Adopt each marked column onto the query so the datasource /
+        // embed applies it at run time. Resolved here (never silently ignored) — a token that names no
+        // output column is a hard error, otherwise the intended row scope would not be applied.
+        $viewercol     = self::resolve_marked_column($columns, $this->sql(), 'VIEWER');
+        $teachescol    = self::resolve_marked_column($columns, $this->sql(), 'TEACHES');
+        $pagecoursecol = self::resolve_marked_column($columns, $this->sql(), 'PAGECOURSE');
+
         // Register the Reportbuilder report (idempotent). create_report() will set ->type for us.
         // We create with defaults disabled because the datasource cannot resolve its columns until
         // the queryid_for_report_<id> mapping is in place.
@@ -821,6 +830,18 @@ class query {
             'columnsmeta'  => json_encode($meta),
             'timemodified' => time(),
         ];
+        if ($viewercol !== null) {
+            $update->useridcolumn = $viewercol;
+            $this->record->useridcolumn = $viewercol;
+        }
+        if ($teachescol !== null) {
+            $update->coursecolumn = $teachescol;
+            $this->record->coursecolumn = $teachescol;
+        }
+        if ($pagecoursecol !== null) {
+            $update->pagecoursecolumn = $pagecoursecol;
+            $this->record->pagecoursecolumn = $pagecoursecol;
+        }
         $DB->update_record(self::TABLE, $update);
 
         // Hydrate default columns / filters / conditions now that the datasource can resolve them.
@@ -1324,6 +1345,45 @@ class query {
             self::flag_enum_columns($meta, $viewname);
         }
         return $meta;
+    }
+
+    /**
+     * Resolve the output column named by a per-viewer filter token (`%%VIEWER/TEACHES/PAGECOURSE(expr)%%`)
+     * to the real (introspected) view column, for adoption onto the matching query filter field.
+     *
+     * Returns null when the SQL carries no token of this kind — the caller then leaves any existing
+     * column choice (e.g. one picked in the edit form) untouched. Throws when a token is present but
+     * cannot be honoured — more than one token, or a token whose column is not among the view's output
+     * columns (typically a complex expression given no `AS` alias) — because publishing such a report
+     * would silently drop the intended row scope.
+     *
+     * The error strings are token-specific (`err<token>ambiguous` / `err<token>unresolved`, token
+     * lower-cased) so the message names the right token and dropdown.
+     *
+     * @param array $columns Introspected view columns (name => column info), from {@see view::columns()}.
+     * @param string $sql Raw saved SQL (before placeholder resolution).
+     * @param string $token One of view::FILTER_TOKENS (VIEWER | TEACHES | PAGECOURSE).
+     * @return string|null Real output column name to adopt, or null when no token of this kind present.
+     * @throws \moodle_exception err<token>ambiguous | err<token>unresolved
+     */
+    private static function resolve_marked_column(array $columns, string $sql, string $token): ?string {
+        $count = view::filter_token_count($sql, $token);
+        if ($count === 0) {
+            return null;
+        }
+        $key = strtolower($token);
+        $names = view::filter_token_columns($sql, $token);
+        // Exactly one token of this kind is supported, and it must have resolved to a nameable column.
+        if ($count > 1 || count($names) !== 1) {
+            throw new \moodle_exception('err' . $key . 'ambiguous', 'report_sql');
+        }
+        $target = (string) array_key_first($names);
+        foreach ($columns as $name => $info) {
+            if (strtolower($name) === $target) {
+                return $name;
+            }
+        }
+        throw new \moodle_exception('err' . $key . 'unresolved', 'report_sql', '', $target);
     }
 
     /**

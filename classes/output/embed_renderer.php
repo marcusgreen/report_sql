@@ -22,6 +22,7 @@ use html_table;
 use html_writer;
 use report_sql\local\chart_presenter;
 use report_sql\local\query;
+use report_sql\reportbuilder\local\entities\adhoc_view;
 
 /**
  * Shared inline render path for a published report (table or chart).
@@ -89,13 +90,23 @@ class embed_renderer {
         $table->attributes['class'] = 'table table-sm';
         foreach ($rows as $row) {
             $cells = [];
+            // Case-insensitive row lookup for the %%LINK%% key column (linkkey names another output
+            // column whose value fills the path's {} slot).
+            $rowlc = array_change_key_case($row);
             foreach ($row as $col => $v) {
                 $m = $meta[strtolower((string) $col)] ?? [];
-                if (($m['type'] ?? '') === 'timestamp') {
+                if (($m['type'] ?? '') === 'timestamp' && empty($m['link'])) {
                     // Raw epoch → formatted date, using the column's saved format (else the default).
                     $cells[] = ($v === null || $v === '')
                         ? ''
                         : s(userdate((int) $v, chart_presenter::strftime_format((string) ($m['dateformat'] ?? '')), 99, false));
+                } else if (!empty($m['link'])) {
+                    // A %%LINK%% column renders the raw value as a site-relative link, exactly as the
+                    // RB report does (shared render_link()). The 3-arg form fills {} from another column.
+                    $key = !empty($m['linkkey'])
+                        ? (string) ($rowlc[strtolower((string) $m['linkkey'])] ?? '')
+                        : null;
+                    $cells[] = adhoc_view::render_link((string) $v, (string) $m['link'], $key);
                 } else if (!empty($m['textcase'])) {
                     // Display-only case transform on the raw text.
                     $cells[] = s(chart_presenter::format_textcase((string) $v, (string) $m['textcase']));

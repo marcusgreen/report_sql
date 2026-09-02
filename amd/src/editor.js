@@ -654,6 +654,9 @@ const TOKENS = [
     {label: '%%EPOCH()%%', key: 'tokenhintepoch', caret: 8},
     {label: '%%CASE()%%', key: 'tokenhintcase', caret: 7},
     {label: '%%LINK()%%', key: 'tokenhintlink', caret: 7},
+    {label: '%%VIEWER()%%', key: 'tokenhintviewer', caret: 9},
+    {label: '%%TEACHES()%%', key: 'tokenhintteaches', caret: 10},
+    {label: '%%PAGECOURSE()%%', key: 'tokenhintpagecourse', caret: 13},
 ];
 
 /**

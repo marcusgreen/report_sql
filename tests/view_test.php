@@ -216,6 +216,59 @@ final class view_test extends \advanced_testcase {
     }
 
     /**
+     * %%VIEWER(expr)%% resolves to the bare expression as an ordinary output column — the view stays
+     * unscoped; the per-viewer filter is applied later from the recorded useridcolumn.
+     */
+    public function test_resolve_strips_viewer_token_to_bare_expr(): void {
+        $this->resetAfterTest();
+
+        $resolved = view::resolve_placeholders(
+            'SELECT %%VIEWER(u.id)%% AS uid, %%TEACHES(c.id)%% AS tc, '
+            . '%%PAGECOURSE(c.id)%% AS pc, u.firstname FROM {user} u'
+        );
+
+        $this->assertStringContainsString('(u.id) AS uid', $resolved);
+        $this->assertStringContainsString('(c.id) AS tc', $resolved);
+        $this->assertStringContainsString('(c.id) AS pc', $resolved);
+        $this->assertStringNotContainsString('%%', $resolved);
+        $this->assertStringNotContainsStringIgnoringCase('VIEWER', $resolved);
+        $this->assertStringNotContainsStringIgnoringCase('TEACHES', $resolved);
+        $this->assertStringNotContainsStringIgnoringCase('PAGECOURSE', $resolved);
+    }
+
+    /**
+     * filter_token_columns() names each token's output column (AS alias, else trailing identifier); a
+     * token whose expression cannot be named is dropped, but filter_token_count() still counts it so
+     * publish can reject rather than publish with the intended row scope silently unapplied. Works for
+     * each filter token (VIEWER / TEACHES / PAGECOURSE).
+     */
+    public function test_filter_token_columns_and_count(): void {
+        $aliased = 'SELECT %%VIEWER(u.id)%% AS viewerid, x FROM t';
+        $this->assertSame(['viewerid' => true], view::filter_token_columns($aliased, 'VIEWER'));
+        $this->assertSame(1, view::filter_token_count($aliased, 'VIEWER'));
+
+        $bare = 'SELECT %%TEACHES(c.id)%%, x FROM t';
+        $this->assertSame(['id' => true], view::filter_token_columns($bare, 'TEACHES'));
+        $this->assertSame(1, view::filter_token_count($bare, 'TEACHES'));
+
+        $page = 'SELECT %%PAGECOURSE(cc.courseid)%% AS coursecol, x FROM t';
+        $this->assertSame(['coursecol' => true], view::filter_token_columns($page, 'PAGECOURSE'));
+
+        // A token of one kind is not counted as another kind.
+        $this->assertSame(0, view::filter_token_count($aliased, 'TEACHES'));
+
+        // Expression with no trailing identifier and no alias — unnameable, so no column entry, but the
+        // token is still counted.
+        $unnameable = 'SELECT %%VIEWER(COALESCE(a.id, b.id))%%, x FROM t';
+        $this->assertSame([], view::filter_token_columns($unnameable, 'VIEWER'));
+        $this->assertSame(1, view::filter_token_count($unnameable, 'VIEWER'));
+
+        $none = 'SELECT id FROM t';
+        $this->assertSame([], view::filter_token_columns($none, 'VIEWER'));
+        $this->assertSame(0, view::filter_token_count($none, 'VIEWER'));
+    }
+
+    /**
      * %%LINK(expr, 'path')%% resolves to the bare expression (the path is dropped from the SQL and
      * applied later as a display callback), leaving no token or path behind.
      */

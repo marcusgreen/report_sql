@@ -31,6 +31,25 @@ use report_sql\local\transfer;
  */
 final class transfer_test extends \advanced_testcase {
     /**
+     * Drop any report_sql views left behind by a test that published a query. Moodle's per-test DB
+     * reset enumerates tables and issues DROP TABLE, which errors on a VIEW — so a test that leaves
+     * a query published would otherwise fail in teardown rather than in the test body.
+     */
+    protected function tearDown(): void {
+        global $DB;
+        $prefix = $DB->get_prefix() . 'report_sql_v_';
+        $views = $DB->get_records_sql(
+            "SELECT table_name FROM information_schema.views WHERE table_name LIKE ?",
+            [$prefix . '%']
+        );
+        foreach ($views as $view) {
+            $name = $view->table_name ?? reset($view);
+            $DB->execute('DROP VIEW IF EXISTS ' . $name);
+        }
+        parent::tearDown();
+    }
+
+    /**
      * Build a minimal portable source descriptor as produced by transfer::parse().
      *
      * @param array $extra Extra/override fields.
@@ -202,5 +221,56 @@ final class transfer_test extends \advanced_testcase {
         $this->assertSame(0, $second['imported']);
         $this->assertCount($imported, $second['duplicates']);
         $this->assertSame($imported, $DB->count_records(query::TABLE));
+    }
+
+    /**
+     * The bundled %%VIEWER%% sample not only imports but publishes: the token is adopted as the
+     * per-viewer filter (useridcolumn), proving the SQL executes and the scoping survives import.
+     */
+    public function test_bundled_viewer_sample_publishes_and_scopes(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        transfer::import_samples();
+        $rec = $DB->get_record_select(
+            query::TABLE,
+            $DB->sql_like('name', ':name'),
+            ['name' => '%' . $DB->sql_like_escape('My course enrolments') . '%'],
+            '*',
+            MUST_EXIST
+        );
+
+        query::get((int) $rec->id)->publish();
+
+        $published = $DB->get_record(query::TABLE, ['id' => $rec->id], '*', MUST_EXIST);
+        $this->assertSame(query::STATUS_PUBLISHED, $published->status);
+        // The %%VIEWER(ue.userid)%% token was adopted as the per-viewer filter column.
+        $this->assertSame('viewerid', $published->useridcolumn);
+    }
+
+    /**
+     * The bundled %%TEACHES%% sample publishes and adopts the marked column as the teacher-course
+     * filter (coursecolumn), proving the SQL executes and the scoping survives import.
+     */
+    public function test_bundled_teaches_sample_publishes_and_scopes(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        transfer::import_samples();
+        $rec = $DB->get_record_select(
+            query::TABLE,
+            $DB->sql_like('name', ':name'),
+            ['name' => '%' . $DB->sql_like_escape('Enrolments in courses I teach') . '%'],
+            '*',
+            MUST_EXIST
+        );
+
+        query::get((int) $rec->id)->publish();
+
+        $published = $DB->get_record(query::TABLE, ['id' => $rec->id], '*', MUST_EXIST);
+        $this->assertSame(query::STATUS_PUBLISHED, $published->status);
+        $this->assertSame('courseid', $published->coursecolumn);
     }
 }

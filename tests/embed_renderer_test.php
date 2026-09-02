@@ -125,6 +125,38 @@ final class embed_renderer_test extends \advanced_testcase {
         $this->assertStringContainsString('ADA', $html);
     }
 
+    public function test_render_table_renders_link_column_as_anchor(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // A %%LINK%% column must render as an <a> in the block / embed path, same as the RB report —
+        // not as the raw value. Regression: the link branch was missing from render_table().
+        $query = $this->published(
+            "SELECT %%LINK(username, '/user/profile.php?id={}')%% AS who FROM {user}"
+        );
+        $html = embed_renderer::render_table($query, [['who' => 'ada']]);
+
+        $this->assertStringContainsString('<a ', $html);
+        $this->assertStringContainsString('/user/profile.php?id=ada', $html);
+        $this->assertStringContainsString('>ada<', $html);
+    }
+
+    public function test_render_table_link_key_column_fills_slot_from_other_column(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // 3-arg %%LINK(display, keycol, 'path')%%: the visible text is the username, but {} is filled
+        // from the userid column in the same row.
+        $query = $this->published(
+            'SELECT id AS userid, '
+            . "%%LINK(username, userid, '/user/view.php?id={}')%% AS who FROM {user}"
+        );
+        $html = embed_renderer::render_table($query, [['userid' => 42, 'who' => 'ada']]);
+
+        $this->assertStringContainsString('/user/view.php?id=42', $html);
+        $this->assertStringContainsString('>ada<', $html);
+    }
+
     public function test_render_auto_falls_back_to_table_without_chart_config(): void {
         $this->resetAfterTest();
         $this->setAdminUser();

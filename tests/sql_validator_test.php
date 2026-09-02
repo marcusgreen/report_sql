@@ -161,6 +161,25 @@ final class sql_validator_test extends \advanced_testcase {
         );
     }
 
+    public function test_viewer_token_is_supported(): void {
+        // Token %%VIEWER(expr)%% is recognised by shape, so validation must not reject it as an
+        // unfilled placeholder (it is resolved at view-build and adopted as the per-user filter).
+        $this->assertNotEmpty(
+            validator::validate('SELECT %%VIEWER(id)%% AS viewerid, username FROM {user}')
+        );
+    }
+
+    public function test_teaches_and_pagecourse_tokens_are_supported(): void {
+        // The teacher-course and page-course filter tokens are recognised by shape (resolved at
+        // view-build, adopted as coursecolumn / pagecoursecolumn), so validation must not reject them.
+        $this->assertNotEmpty(
+            validator::validate('SELECT %%TEACHES(id)%% AS courseid, fullname FROM {course}')
+        );
+        $this->assertNotEmpty(
+            validator::validate('SELECT %%PAGECOURSE(id)%% AS courseid, fullname FROM {course}')
+        );
+    }
+
     public function test_unknown_context_token_is_rejected(): void {
         // A made-up %%CONTEXT_*%% name is not in the supported set and must be rejected.
         $this->expectException(\moodle_exception::class);
