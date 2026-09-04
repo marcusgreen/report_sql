@@ -32,12 +32,18 @@ require_capability('moodle/site:config', context_system::instance());
 
 admin_externalpage_setup('report_sql_testview');
 
-$result = privilege_check::probe();
+// The probe issues real DDL (CREATE/DROP VIEW), so it is a state-changing
+// action: only run it in response to an explicit POST with a valid sesskey,
+// never as a side effect of a plain GET load (CSRF-safe, guideline S8).
+$run = optional_param('run', 0, PARAM_BOOL);
+$result = ($run && confirm_sesskey()) ? privilege_check::probe() : null;
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('testview:title', 'report_sql'));
 
-if ($result['ok']) {
+if ($result === null) {
+    echo html_writer::tag('p', get_string('testview:intro', 'report_sql'));
+} else if ($result['ok']) {
     echo $OUTPUT->notification(
         get_string('testview:ok', 'report_sql'),
         \core\output\notification::NOTIFY_SUCCESS
@@ -49,6 +55,12 @@ if ($result['ok']) {
     );
     echo html_writer::tag('p', get_string('testview:grantshint', 'report_sql'));
 }
+
+echo $OUTPUT->single_button(
+    new moodle_url('/report/sql/testview.php', ['run' => 1]),
+    get_string('testview:run', 'report_sql'),
+    'post'
+);
 
 echo html_writer::link(
     new moodle_url('/admin/settings.php', ['section' => 'report_sql']),
