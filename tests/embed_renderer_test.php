@@ -202,6 +202,54 @@ final class embed_renderer_test extends \advanced_testcase {
         $this->assertStringNotContainsString('>userid<', $html);
     }
 
+    public function test_render_table_auto_hides_link_key_column(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // A 3-arg %%LINK%% keyed on the userid column makes that raw id redundant (it is already
+        // inside the link), so it is auto-hidden with no explicit hide list — but the link that
+        // consumes it still resolves.
+        $query = $this->published(
+            'SELECT id AS userid, '
+            . "%%LINK(username, userid, '/user/view.php?id={}')%% AS who FROM {user}"
+        );
+        $html = embed_renderer::render_table($query, [['userid' => 42, 'who' => 'ada']]);
+
+        $this->assertStringNotContainsString('>userid<', $html);
+        $this->assertStringContainsString('/user/view.php?id=42', $html);
+        $this->assertStringContainsString('>ada<', $html);
+    }
+
+    public function test_render_table_keeps_id_column_that_is_itself_a_link(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // A clickable id is deliberate: an id column that is itself a %%LINK%% (not merely a key for
+        // another column) must stay visible.
+        $query = $this->published(
+            "SELECT %%LINK(id, '/user/view.php?id={}')%% AS id FROM {user}"
+        );
+        $html = embed_renderer::render_table($query, [['id' => 7]]);
+
+        $this->assertStringContainsString('>id<', $html);
+        $this->assertStringContainsString('/user/view.php?id=7', $html);
+    }
+
+    public function test_render_table_show_overrides_auto_hide_of_key_column(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // $show force-keeps a key column that would otherwise be auto-hidden.
+        $query = $this->published(
+            'SELECT id AS userid, '
+            . "%%LINK(username, userid, '/user/view.php?id={}')%% AS who FROM {user}"
+        );
+        $html = embed_renderer::render_table($query, [['userid' => 42, 'who' => 'ada']], [], ['userid']);
+
+        $this->assertStringContainsString('>userid<', $html);
+        $this->assertStringContainsString('/user/view.php?id=42', $html);
+    }
+
     public function test_render_auto_falls_back_to_table_without_chart_config(): void {
         $this->resetAfterTest();
         $this->setAdminUser();

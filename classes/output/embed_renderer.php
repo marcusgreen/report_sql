@@ -77,9 +77,11 @@ class embed_renderer {
      * @param array $rows
      * @param string[] $hide Output column names to omit from display (case-insensitive). The rows
      *     still carry them, so a %%LINK%% keyed on a hidden column still resolves.
+     * @param string[] $show Output column names to force-keep, exempting them from the automatic
+     *     hiding of %%LINK%% key columns below (case-insensitive). Does not override $hide.
      * @return string
      */
-    public static function render_table(query $query, array $rows, array $hide = []): string {
+    public static function render_table(query $query, array $rows, array $hide = [], array $show = []): string {
         if (!$rows) {
             return html_writer::tag('p', get_string('norows', 'report_sql'), ['class' => 'text-muted']);
         }
@@ -88,6 +90,22 @@ class embed_renderer {
         $meta = array_change_key_case($query->columns_meta());
         // Lower-cased lookup set of columns to skip from display.
         $hideset = array_flip(array_map('strtolower', $hide));
+
+        // Auto-hide redundant key columns: when a %%LINK%% renders one column as a link keyed on
+        // another column's value (a 3-arg %%LINK(display, keycol, path)%%), that key column — often
+        // a raw id — is now duplicated inside the link, so showing it too is pure noise. Drop it,
+        // unless it is itself a link (a clickable id is deliberate) or explicitly kept via $show.
+        // The row still carries the value, so the link that consumes it still resolves.
+        $keep = array_flip(array_map('strtolower', $show));
+        foreach ($meta as $m) {
+            if (empty($m['link']) || empty($m['linkkey'])) {
+                continue;
+            }
+            $keycol = strtolower((string) $m['linkkey']);
+            if (empty($meta[$keycol]['link']) && !isset($keep[$keycol])) {
+                $hideset[$keycol] = true;
+            }
+        }
 
         $table = new html_table();
         $table->head = array_map('s', array_values(array_filter(
