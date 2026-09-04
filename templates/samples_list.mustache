@@ -24,6 +24,7 @@
     * data-action="select-all"          tick every enabled sample
     * data-action="select-none"         untick every sample
     * data-region="sample-checkbox"   each per-sample checkbox
+    * data-action="toggle-showall"    the "show all" reveal checkbox (submits its GET form)
 
     Context variables required for this template:
     * intro - Introductory sentence (already localised).
@@ -31,9 +32,15 @@
     * actionurl - Form POST target.
     * cancelurl - Where the Cancel button returns to.
     * sesskey - Session key for the POST.
+    * hasunavailable - True when at least one sample needs an uninstalled plugin (shows the toggle).
+    * showall - True when the reveal toggle is on.
+    * showalllabel - Localised label for the reveal toggle (carries the hidden count).
     * samples - Array of rows, each with:
         * index - Stable 0-based selector for import.
         * name - Sample name.
+        * hasrequires - True when the sample depends on a third-party plugin (shows a badge).
+        * requires - Localised "Requires ..." badge text (only when hasrequires).
+        * requiresmissing - True when a revealed sample needs an uninstalled plugin (warning badge, disabled).
         * description - Sample description, pre-formatted safe HTML (rendered unescaped).
         * querysql - The backing SQL (shown in a collapsible preview).
         * disabled - True when the control is disabled (bulk mode, name already present).
@@ -52,6 +59,18 @@
         ]
     }
 }}
+{{#hasunavailable}}
+    {{! Sibling GET form (never nested in the POST import form). report_sql/samples submits it on
+        change to flip ?showall, revealing samples whose required plugin is not installed. }}
+    <form method="get" action="{{actionurl}}" class="mb-3" data-region="samples-showall-form">
+        {{#single}}<input type="hidden" name="single" value="1">{{/single}}
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="rs-showall" name="showall" value="1"
+                   data-action="toggle-showall"{{#showall}} checked{{/showall}}>
+            <label class="form-check-label" for="rs-showall">{{showalllabel}}</label>
+        </div>
+    </form>
+{{/hasunavailable}}
 <form method="post" action="{{actionurl}}" data-region="samples-form">
     <input type="hidden" name="sesskey" value="{{sesskey}}">
     <input type="hidden" name="import" value="1">
@@ -79,7 +98,7 @@
                 <div class="card-body d-flex gap-3">
                     <div class="rs-sample-control align-self-start">
                         {{#single}}
-                            <button type="submit" class="btn btn-primary btn-sm" name="selected" value="{{index}}">
+                            <button type="submit" class="btn btn-primary btn-sm" name="selected" value="{{index}}"{{#disabled}} disabled{{/disabled}}>
                                 {{#str}} samples:import, report_sql {{/str}}
                             </button>
                         {{/single}}
@@ -94,7 +113,7 @@
                         {{/single}}
                     </div>
                     <div class="rs-sample-body flex-grow-1">
-                        <label for="sample-{{index}}" class="rs-sample-name mb-1">{{{nameicon}}}{{name}}</label>
+                        <label for="sample-{{index}}" class="rs-sample-name mb-1">{{{nameicon}}}{{name}}{{#hasrequires}} <span class="badge align-middle {{#requiresmissing}}bg-warning text-dark{{/requiresmissing}}{{^requiresmissing}}bg-info text-dark{{/requiresmissing}}">{{requires}}</span>{{/hasrequires}}</label>
                         <div class="rs-sample-desc mb-2">{{{description}}}</div>
                         <details>
                             <summary class="small">{{#str}} samples:previewsql, report_sql {{/str}}</summary>

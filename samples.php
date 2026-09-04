@@ -107,6 +107,20 @@ if (optional_param('import', 0, PARAM_BOOL) && confirm_sesskey()) {
     redirect($indexurl, implode(' ', $messages), null, \core\output\notification::NOTIFY_SUCCESS);
 }
 
+// For the display, include samples whose required plugin is missing so the "show all" toggle can
+// reveal them (disabled, badged "not installed"). The import handler above keeps the default
+// available-only set, so a missing-plugin sample is never actually importable.
+$showall = optional_param('showall', 0, PARAM_BOOL);
+$sources = transfer::bundled_samples(true);
+
+// Count the samples hidden behind the toggle (a required plugin is not installed here).
+$unavailablecount = 0;
+foreach ($sources as $source) {
+    if (empty($source['available'])) {
+        $unavailablecount++;
+    }
+}
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string($single ? 'samples:titlesingle' : 'samples:title', 'report_sql'));
 
@@ -142,8 +156,19 @@ $charticons = [
 $rows = [];
 $radiochosen = false;
 foreach ($sources as $source) {
+    $available = !empty($source['available']);
+
+    // A sample needing an uninstalled plugin is hidden unless "show all" is on; when revealed it is
+    // shown disabled (its tables are absent, so it can never import here).
+    if (!$available && !$showall) {
+        continue;
+    }
+
     $isdup = !empty($source['duplicate']);
-    if ($single) {
+    if (!$available) {
+        $disabled = true;
+        $checked = false;
+    } else if ($single) {
         $disabled = false;
         $checked = !$radiochosen;
         if ($checked) {
@@ -173,10 +198,29 @@ foreach ($sources as $source) {
         ]);
     }
 
+    // Third-party plugin dependencies get a "Requires ..." badge so an author knows the sample is
+    // not core-only. When the sample is revealed-but-unavailable the badge says "(not installed)"
+    // and renders as a warning; an installed dependency is an informational badge.
+    $requiresnames = [];
+    foreach ($source['requiresmeta'] ?? [] as $rm) {
+        if (!empty($rm['thirdparty'])) {
+            $requiresnames[] = $rm['name'];
+        }
+    }
+
     $rows[] = [
         'index'       => $source['index'],
         'name'        => $source['name'],
         'nameicon'    => $nameicon,
+        'hasrequires' => !empty($requiresnames),
+        'requiresmissing' => !$available,
+        'requires'    => $requiresnames
+            ? get_string(
+                $available ? 'samples:requires' : 'samples:requiresmissingbadge',
+                'report_sql',
+                implode(', ', $requiresnames)
+            )
+            : '',
         // SECURITY: intentional 'noclean' — NOT an XSS hole. $source['description'] is never user
         // input; it is read only from the plugin's shipped samples/samples.json (via
         // transfer::bundled_samples()), so it is trusted. Needed so a sample can embed an
@@ -199,6 +243,11 @@ echo $OUTPUT->render_from_template('report_sql/samples_list', [
     'actionurl' => (new moodle_url('/report/sql/samples.php'))->out(false),
     'cancelurl' => $indexurl->out(false),
     'sesskey'   => sesskey(),
+    // "Show all" reveal: offered only when at least one sample needs an uninstalled plugin. The
+    // toggle is a small GET form (report_sql/samples AMD submits it on change) that flips ?showall.
+    'hasunavailable' => $unavailablecount > 0,
+    'showall'        => (bool) $showall,
+    'showalllabel'   => get_string('samples:showall', 'report_sql', $unavailablecount),
     'samples' => $rows,
 ]);
 

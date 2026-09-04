@@ -108,17 +108,43 @@ if ($data = $mform->get_data()) {
 
     $sources = transfer::parse($json);
 
+    // Hide any source whose required third-party plugin is not installed here — its tables are
+    // absent, so it could never publish. Keys are preserved (no reindex) so each survivor's $index
+    // still matches the freshly re-parsed payload at the import step. import() also refuses these,
+    // but hiding them keeps an unselectable, un-importable row out of the picker.
+    $hidden = [];
+    foreach ($sources as $index => $source) {
+        foreach ($source['requires'] ?? [] as $component) {
+            if (!transfer::component_available($component)) {
+                $hidden[] = (string) $source['name'];
+                unset($sources[$index]);
+                break;
+            }
+        }
+    }
+
     echo $OUTPUT->header();
     echo $OUTPUT->heading(get_string('import', 'report_sql'));
 
     if (!$sources) {
-        echo $OUTPUT->notification(get_string('errimportempty', 'report_sql'), 'error');
+        // Either the file held nothing importable, or every source needs a missing plugin.
+        $msg = $hidden
+            ? get_string('importallhidden', 'report_sql', implode(', ', $hidden))
+            : get_string('errimportempty', 'report_sql');
+        echo $OUTPUT->notification($msg, 'error');
         echo $OUTPUT->single_button($PAGE->url, get_string('back'), 'get');
         echo $OUTPUT->footer();
         exit;
     }
 
     echo html_writer::tag('p', get_string('importselecthelp', 'report_sql'));
+
+    if ($hidden) {
+        echo $OUTPUT->notification(
+            get_string('importhidden', 'report_sql', implode(', ', $hidden)),
+            \core\output\notification::NOTIFY_INFO
+        );
+    }
 
     echo html_writer::start_tag('form', [
         'method' => 'post',

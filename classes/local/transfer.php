@@ -73,7 +73,7 @@ class transfer {
      * @return array<string, mixed>
      */
     private static function record_to_source(\stdClass $rec): array {
-        return [
+        $source = [
             'name'        => (string) $rec->name,
             'description' => (string) ($rec->description ?? ''),
             // The format travels; any embedded image *files* do not (JSON is text-only), so a
@@ -88,6 +88,17 @@ class transfer {
             // courseid, which is site-specific). Empty when the query has no page-course scoping.
             'pagecoursecolumn' => (string) ($rec->pagecoursecolumn ?? ''),
         ];
+
+        // Auto-detected third-party plugin dependencies, from the tables the SQL references. Baked
+        // in here (on a site where those plugins are installed, so the tables resolve) so the
+        // importing site can hide/flag the source without any table-to-plugin guessing. Omitted
+        // entirely when the query touches only core/standard tables, to keep exports tidy.
+        $requires = self::detect_requires((string) $rec->querysql);
+        if ($requires) {
+            $source['requires'] = $requires;
+        }
+
+        return $source;
     }
 
     /**
@@ -124,9 +135,181 @@ class transfer {
                 'chartmeta'   => isset($raw['chartmeta']) && is_array($raw['chartmeta'])
                     ? $raw['chartmeta'] : null,
                 'pagecoursecolumn' => clean_param((string) ($raw['pagecoursecolumn'] ?? ''), PARAM_ALPHANUMEXT),
+                // Frankenstyle component(s) this source needs on the target site (e.g. a sample
+                // over a third-party plugin's tables). Absent/empty = core-only, always usable.
+                // A source whose required plugin is missing is filtered out of the browse UI by
+                // {@see bundled_samples()} and refused by {@see import()}.
+                'requires'    => self::normalize_requires($raw['requires'] ?? []),
             ];
         }
         return $sources;
+    }
+
+    /**
+     * Normalise a source's `requires` value into a clean list of frankenstyle components.
+     *
+     * Accepts either a single component string or an array of them; each is run through
+     * {@see PARAM_COMPONENT}, blanks dropped, duplicates collapsed. A malformed component cleans
+     * to '' and is dropped here, so it never reaches the availability check.
+     *
+     * @param mixed $value Raw `requires` from the JSON (string, array, or absent).
+     * @return string[] Zero or more frankenstyle component names.
+     */
+    private static function normalize_requires($value): array {
+        if (is_string($value)) {
+            $value = $value === '' ? [] : [$value];
+        }
+        if (!is_array($value)) {
+            return [];
+        }
+        $out = [];
+        foreach ($value as $component) {
+            $component = clean_param((string) $component, PARAM_COMPONENT);
+            if ($component !== '') {
+                $out[] = $component;
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
+    /**
+     * Per-request cache of the third-party table => component map. Null until first built.
+     *
+     * @var array<string,string>|null
+     */
+    private static $tablemap = null;
+
+    /**
+     * Work out which third-party plugins a query depends on, from the tables it references.
+     *
+     * Extracts the query's `{table}` references and maps each to the installed non-standard plugin
+     * that owns it (see {@see thirdparty_table_map()}). Only third-party owners are returned — core
+     * and standard-plugin tables are always present, so they need no `requires` marker. Run at
+     * export time (on a site where the plugin is installed, so the tables resolve), the result is
+     * baked into the export's `requires` field, giving the importing site a certain, named
+     * dependency without any table-to-plugin guessing on its end.
+     *
+     * @param string $sql The query SQL.
+     * @return string[] Distinct frankenstyle components, sorted.
+     */
+    public static function detect_requires(string $sql): array {
+        $map = self::thirdparty_table_map();
+        if (!$map) {
+            return [];
+        }
+        $components = [];
+        foreach (validator::braced_tables($sql) as $table) {
+            if (isset($map[$table])) {
+                $components[$map[$table]] = true;
+            }
+        }
+        $components = array_keys($components);
+        sort($components);
+        return $components;
+    }
+
+    /**
+     * Map of table name => owning component for every installed non-standard plugin.
+     *
+     * Built by reading each third-party plugin's db/install.xml and collecting its `<TABLE>` names.
+     * Standard/core plugins are skipped — only third-party ownership is of interest, and their
+     * tables are always present on any Moodle so never gate an import. install.xml is a trusted
+     * plugin file; table declarations are matched directly rather than through the xmldb loader to
+     * avoid that dependency. Cached per request (export may call {@see detect_requires()} once per
+     * source).
+     *
+     * @return array<string,string> Lower-cased table name => frankenstyle component.
+     */
+    private static function thirdparty_table_map(): array {
+        if (self::$tablemap !== null) {
+            return self::$tablemap;
+        }
+
+        $map = [];
+        $manager = \core_plugin_manager::instance();
+        foreach ($manager->get_plugins() as $plugins) {
+            foreach ($plugins as $info) {
+                if ($info->is_standard() || !$info->is_installed_and_upgraded()) {
+                    continue;
+                }
+                $dir = \core_component::get_component_directory($info->component);
+                if ($dir === null) {
+                    continue;
+                }
+                $installxml = $dir . '/db/install.xml';
+                if (!is_readable($installxml)) {
+                    continue;
+                }
+                $contents = file_get_contents($installxml);
+                if ($contents === false) {
+                    continue;
+                }
+                if (preg_match_all('/<TABLE\s+NAME="([^"]+)"/i', $contents, $matches)) {
+                    foreach ($matches[1] as $table) {
+                        $map[strtolower($table)] = $info->component;
+                    }
+                }
+            }
+        }
+
+        self::$tablemap = $map;
+        return $map;
+    }
+
+    /**
+     * Is a required frankenstyle component present and upgraded on this site?
+     *
+     * A bare `core` requirement is always satisfied. A plugin component is available only when the
+     * plugin manager knows it and it is installed and upgraded — a present-on-disk-but-not-yet-
+     * upgraded plugin does not count, since its tables may not exist. An unknown/malformed
+     * component is unavailable.
+     *
+     * @param string $component Frankenstyle component (e.g. 'mod_attendance').
+     * @return bool
+     */
+    public static function component_available(string $component): bool {
+        $component = trim($component);
+        if ($component === '') {
+            return true;
+        }
+        [$type, $name] = \core_component::normalize_component($component);
+        if ($type === 'core') {
+            return true;
+        }
+        if ($name === null) {
+            return false;
+        }
+        $info = \core_plugin_manager::instance()->get_plugin_info($component);
+        return $info !== null && $info->is_installed_and_upgraded();
+    }
+
+    /**
+     * Describe a source's required components for the browse UI.
+     *
+     * Flags whether each is third-party (non-standard) — the browse UI badges only those, since a
+     * standard/core dependency is always present and needs no "requires" note — and whether it is
+     * installed, so the "show all" reveal can mark a missing dependency as such.
+     *
+     * @param string[] $components Frankenstyle components (already normalised).
+     * @return array<int, array{component:string,name:string,thirdparty:bool,installed:bool}>
+     */
+    private static function requires_meta(array $components): array {
+        $meta = [];
+        foreach ($components as $component) {
+            $info = \core_plugin_manager::instance()->get_plugin_info($component);
+            // A not-installed plugin has no lang pack, so 'pluginname' would render as a broken
+            // string placeholder — fall back to the raw frankenstyle component. An absent plugin
+            // is treated as third-party (core is always installed, so it never reaches here unmet).
+            $installed = $info !== null;
+            $hasname = $installed && get_string_manager()->string_exists('pluginname', $component);
+            $meta[] = [
+                'component'  => $component,
+                'name'       => $hasname ? get_string('pluginname', $component) : $component,
+                'thirdparty' => !$installed || !$info->is_standard(),
+                'installed'  => $installed,
+            ];
+        }
+        return $meta;
     }
 
     /**
@@ -162,6 +345,21 @@ class transfer {
             }
             $source = $sources[$index];
             $name = (string) ($source['name'] ?? '');
+
+            // Refuse a source whose required plugin is not installed — its tables would be absent,
+            // so it could never publish. Belt-and-braces: bundled_samples() already hides these,
+            // but a client could post a stale index or an uploaded file could name a missing plugin.
+            $missing = '';
+            foreach ($source['requires'] ?? [] as $component) {
+                if (!self::component_available($component)) {
+                    $missing = $component;
+                    break;
+                }
+            }
+            if ($missing !== '') {
+                $skipped[$name] = get_string('samples:requiresmissing', 'report_sql', $missing);
+                continue;
+            }
 
             try {
                 $sql = validator::validate((string) ($source['querysql'] ?? ''));
@@ -214,12 +412,21 @@ class transfer {
      * Single read path for the bundled file: returns an empty array if the file is absent (a
      * stripped deployment) or unparseable, so callers can present the loader without fataling.
      * Each returned source carries its 0-based `index` (stable position, used as the import
-     * selector) and a `duplicate` flag — true when a query with the same name already exists on
-     * this site, so the browse UI can flag it and the server can refuse to re-import it.
+     * selector), a `duplicate` flag (a query with the same name already exists), an `available`
+     * flag (all required plugins installed) and `requiresmeta` (per-dependency display info).
      *
-     * @return array<int, array<string, mixed>> Parsed sources, each with added `index` and `duplicate`.
+     * By default a sample whose required plugin is missing is dropped — it could neither preview
+     * nor publish here. Pass `$includeunavailable = true` to keep it (still flagged
+     * `available = false`) so the browse UI's "show all" reveal can list it, disabled. Keys are
+     * preserved either way (no reindex), so each source's `index` still equals its array key,
+     * which the import selector relies on. Callers that import (count/bulk/selection) use the
+     * default, so a missing-plugin sample is never importable.
+     *
+     * @param bool $includeunavailable Keep (flag) samples with a missing required plugin.
+     * @return array<int, array<string, mixed>> Parsed sources, each with added `index`,
+     *         `duplicate`, `available` and `requiresmeta`.
      */
-    public static function bundled_samples(): array {
+    public static function bundled_samples(bool $includeunavailable = false): array {
         global $DB;
 
         if (!is_readable(self::BUNDLED_SAMPLES)) {
@@ -236,9 +443,24 @@ class transfer {
         }
 
         foreach ($sources as $index => &$source) {
+            $available = true;
+            foreach ($source['requires'] ?? [] as $component) {
+                if (!self::component_available($component)) {
+                    $available = false;
+                    break;
+                }
+            }
+            if (!$available && !$includeunavailable) {
+                unset($sources[$index]);
+                continue;
+            }
+
             $name = (string) ($source['name'] ?? '');
             $source['index'] = $index;
+            $source['available'] = $available;
             $source['duplicate'] = $name !== '' && $DB->record_exists(query::TABLE, ['name' => $name]);
+            // Per-required-component display info for the browse badge (names + third-party/installed).
+            $source['requiresmeta'] = self::requires_meta($source['requires'] ?? []);
         }
         unset($source);
 
