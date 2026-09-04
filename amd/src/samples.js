@@ -53,4 +53,13 @@ export const init = () => {
             setAll(false);
         }
     });
+
+    // "Show all" reveal: a sibling GET form; toggling the checkbox reloads with (or without)
+    // ?showall so the server includes/excludes samples needing an uninstalled plugin.
+    const showall = document.querySelector('[data-action="toggle-showall"]');
+    if (showall) {
+        showall.addEventListener('change', () => {
+            showall.closest('form').submit();
+        });
+    }
 };

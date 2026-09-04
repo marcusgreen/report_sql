@@ -273,4 +273,140 @@ final class transfer_test extends \advanced_testcase {
         $this->assertSame(query::STATUS_PUBLISHED, $published->status);
         $this->assertSame('courseid', $published->coursecolumn);
     }
+
+    public function test_parse_normalises_requires(): void {
+        // String, array, blanks and a malformed entry all normalise to a clean de-duped list.
+        $payload = [
+            'format'  => transfer::FORMAT,
+            'version' => transfer::FORMAT_VERSION,
+            'sources' => [
+                ['name' => 'A', 'querysql' => 'SELECT 1', 'requires' => 'mod_quiz'],
+                ['name' => 'B', 'querysql' => 'SELECT 1', 'requires' => ['mod_quiz', 'mod_quiz', '', 'not a component!']],
+                ['name' => 'C', 'querysql' => 'SELECT 1'],
+            ],
+        ];
+        $sources = transfer::parse(json_encode($payload));
+
+        $this->assertSame(['mod_quiz'], $sources[0]['requires']);
+        $this->assertSame(['mod_quiz'], $sources[1]['requires']);
+        $this->assertSame([], $sources[2]['requires']);
+    }
+
+    public function test_component_available(): void {
+        // Core and an always-present standard plugin are available; nonsense is not.
+        $this->assertTrue(transfer::component_available(''));
+        $this->assertTrue(transfer::component_available('core'));
+        $this->assertTrue(transfer::component_available('mod_quiz'));
+        $this->assertFalse(transfer::component_available('mod_thisdoesnotexist'));
+    }
+
+    public function test_import_refuses_missing_required_plugin(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $sources = [$this->source(['name' => 'Needs plugin', 'requires' => ['mod_thisdoesnotexist']])];
+        $result = transfer::import($sources, [0]);
+
+        $this->assertSame(0, $result['imported']);
+        $this->assertArrayHasKey('Needs plugin', $result['skipped']);
+        $this->assertFalse($DB->record_exists(query::TABLE, ['name' => 'Needs plugin']));
+    }
+
+    public function test_import_allows_present_required_plugin(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $sources = [$this->source(['name' => 'Needs quiz', 'requires' => ['mod_quiz']])];
+        $result = transfer::import($sources, [0]);
+
+        $this->assertSame(1, $result['imported']);
+        $this->assertTrue($DB->record_exists(query::TABLE, ['name' => 'Needs quiz']));
+    }
+
+    public function test_detect_requires_core_only_is_empty(): void {
+        // A query over core tables only declares no third-party dependency.
+        $this->assertSame([], transfer::detect_requires('SELECT id FROM {user} u JOIN {course} c ON 1=1'));
+    }
+
+    public function test_detect_requires_flags_thirdparty_table(): void {
+        // block_configurable_reports is a third-party plugin installed on this test site; a query
+        // over its table is detected as requiring that component, while the core {course} join it
+        // also references is ignored.
+        if (!\core_component::get_component_directory('block_configurable_reports')) {
+            $this->markTestSkipped('block_configurable_reports not installed');
+        }
+        $sql = 'SELECT cr.id FROM {block_configurable_reports} cr JOIN {course} c ON c.id = cr.courseid';
+        $this->assertSame(['block_configurable_reports'], transfer::detect_requires($sql));
+    }
+
+    public function test_export_bakes_detected_requires(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        if (!\core_component::get_component_directory('block_configurable_reports')) {
+            $this->markTestSkipped('block_configurable_reports not installed');
+        }
+
+        $id = $DB->insert_record(query::TABLE, (object) [
+            'name'         => 'CR listing',
+            'description'  => '',
+            'querysql'     => 'SELECT id, name FROM {block_configurable_reports}',
+            'courseid'     => 0,
+            'visible'      => 1,
+            'ownerid'      => 2,
+            'status'       => query::STATUS_DRAFT,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ]);
+
+        $payload = transfer::export([$id]);
+        $this->assertSame(['block_configurable_reports'], $payload['sources'][0]['requires']);
+
+        // Round-trips: parse preserves it, so the importing site's hide/badge machinery sees it.
+        $sources = transfer::parse(json_encode($payload));
+        $this->assertSame(['block_configurable_reports'], $sources[0]['requires']);
+    }
+
+    public function test_export_core_only_omits_requires(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $id = $DB->insert_record(query::TABLE, (object) [
+            'name'         => 'Core only',
+            'description'  => '',
+            'querysql'     => 'SELECT id FROM {user}',
+            'courseid'     => 0,
+            'visible'      => 1,
+            'ownerid'      => 2,
+            'status'       => query::STATUS_DRAFT,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ]);
+
+        $payload = transfer::export([$id]);
+        $this->assertArrayNotHasKey('requires', $payload['sources'][0]);
+    }
+
+    public function test_bundled_samples_include_unavailable_superset(): void {
+        $this->resetAfterTest();
+
+        $available = transfer::bundled_samples();
+        $all = transfer::bundled_samples(true);
+
+        // Default set is available-only; every entry is flagged available and present in the superset.
+        foreach ($available as $index => $source) {
+            $this->assertTrue($source['available']);
+            $this->assertArrayHasKey($index, $all);
+        }
+        // Superset never drops any available sample; it only adds unavailable ones.
+        $this->assertGreaterThanOrEqual(count($available), count($all));
+        // Any extra entry (only in the superset) is an unavailable one.
+        foreach (array_diff_key($all, $available) as $source) {
+            $this->assertFalse($source['available']);
+        }
+    }
 }

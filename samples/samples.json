@@ -427,6 +427,47 @@
                 "ycol": "",
                 "rowlimit": ""
             }
+        },
+        {
+            "name": "Activity names in this course: demonstrates %%PAGECOURSE()%%",
+            "description": "<p>Every activity module in a course, showing the activity type and its instance name. Moodle has no central name column for activities — each activity table (assign, quiz, forum, …) holds its own name — so the name is recovered by LEFT JOINing the common module tables via {course_modules}.instance and COALESCEing the first non-null name.</p><p>Demonstrates the %%PAGECOURSE(expr)%% token on the courseid column: embedded in the Report sources block on a course page it shows only that course's activities; the standalone Report Builder viewer has no current course, so there it lists every course. Hide the courseid column in the Report Builder editor after publishing. Activity types not in the COALESCE list show a blank name.</p>",
+            "querysql": "SELECT\r\n    %%PAGECOURSE(cm.course)%% AS courseid,\r\n    c.shortname AS course,\r\n    m.name AS activitytype,\r\n    COALESCE(\r\n        assign.name, quiz.name, forum.name, resource.name, url.name, page.name,\r\n        book.name, folder.name, lbl.name, lesson.name, feedback.name, choice.name,\r\n        scorm.name, glossary.name, wiki.name, workshop.name, data.name, h5p.name\r\n    ) AS activityname\r\nFROM {course_modules} cm\r\nJOIN {modules} m ON m.id = cm.module\r\nJOIN {course} c ON c.id = cm.course\r\nLEFT JOIN {assign}       assign   ON assign.id   = cm.instance AND m.name = 'assign'\r\nLEFT JOIN {quiz}         quiz     ON quiz.id     = cm.instance AND m.name = 'quiz'\r\nLEFT JOIN {forum}        forum    ON forum.id    = cm.instance AND m.name = 'forum'\r\nLEFT JOIN {resource}     resource ON resource.id = cm.instance AND m.name = 'resource'\r\nLEFT JOIN {url}          url      ON url.id      = cm.instance AND m.name = 'url'\r\nLEFT JOIN {page}         page     ON page.id     = cm.instance AND m.name = 'page'\r\nLEFT JOIN {book}         book     ON book.id     = cm.instance AND m.name = 'book'\r\nLEFT JOIN {folder}       folder   ON folder.id   = cm.instance AND m.name = 'folder'\r\nLEFT JOIN {label}        lbl      ON lbl.id      = cm.instance AND m.name = 'label'\r\nLEFT JOIN {lesson}       lesson   ON lesson.id   = cm.instance AND m.name = 'lesson'\r\nLEFT JOIN {feedback}     feedback ON feedback.id = cm.instance AND m.name = 'feedback'\r\nLEFT JOIN {choice}       choice   ON choice.id   = cm.instance AND m.name = 'choice'\r\nLEFT JOIN {scorm}        scorm    ON scorm.id    = cm.instance AND m.name = 'scorm'\r\nLEFT JOIN {glossary}     glossary ON glossary.id = cm.instance AND m.name = 'glossary'\r\nLEFT JOIN {wiki}         wiki     ON wiki.id     = cm.instance AND m.name = 'wiki'\r\nLEFT JOIN {workshop}     workshop ON workshop.id = cm.instance AND m.name = 'workshop'\r\nLEFT JOIN {data}         data     ON data.id     = cm.instance AND m.name = 'data'\r\nLEFT JOIN {h5pactivity}  h5p      ON h5p.id      = cm.instance AND m.name = 'h5pactivity'\r\nWHERE c.id > 1\r\nORDER BY c.shortname, m.name\r\nLIMIT 500",
+            "courseid": 0,
+            "visible": 1,
+            "chartmeta": {
+                "type": "none",
+                "xcol": "",
+                "ycol": "",
+                "rowlimit": ""
+            }
+        },
+        {
+            "name": "Configurable Reports defined on this site: demonstrates the \"requires\" field",
+            "description": "<p>Lists every report defined by the third-party <em>Configurable Reports</em> block (block_configurable_reports): its name, type and course scope. Demonstrates the sample <code>requires</code> field — this sample declares <code>\"requires\": \"block_configurable_reports\"</code>, so it queries that plugin's own table.</p><p>On a site where the block is <strong>not installed</strong> this sample is hidden entirely (its table would not exist); where it <strong>is</strong> installed it appears with a <em>Requires</em> badge so you know it depends on a third-party plugin.</p>",
+            "requires": "block_configurable_reports",
+            "querysql": "SELECT\r\n    cr.id,\r\n    cr.name,\r\n    cr.type,\r\n    CASE WHEN cr.courseid > 1 THEN c.shortname ELSE '*' END AS course\r\nFROM {block_configurable_reports} cr\r\nLEFT JOIN {course} c ON c.id = cr.courseid\r\nORDER BY cr.name\r\nLIMIT 200",
+            "courseid": 0,
+            "visible": 1,
+            "chartmeta": {
+                "type": "none",
+                "xcol": "",
+                "ycol": "",
+                "rowlimit": ""
+            }
+        },
+        {
+            "name": "Attendance sessions per course (test: requires an UNINSTALLED plugin)",
+            "description": "<p>Attendance sessions across the site: course, activity name, session date, duration and how many students were marked. Queries the third-party <em>Attendance</em> module (mod_attendance) via <code>\"requires\": \"mod_attendance\"</code>.</p><p><strong>Test fixture:</strong> mod_attendance is <em>not</em> installed on most sites, so this sample should be <strong>hidden</strong> from the browse and upload lists (its tables do not exist). Install mod_attendance to make it appear — with a <em>Requires Attendance</em> badge. Use it to verify the hide-when-missing behaviour.</p>",
+            "requires": "mod_attendance",
+            "querysql": "SELECT\r\n    c.shortname AS course,\r\n    a.name AS attendance,\r\n    %%TIMESTAMP(ses.sessdate, dd/mm/yyyy)%% AS sessiondate,\r\n    ses.duration,\r\n    COUNT(log.id) AS marked\r\nFROM {attendance_sessions} ses\r\nJOIN {attendance} a ON a.id = ses.attendanceid\r\nJOIN {course} c ON c.id = a.course\r\nLEFT JOIN {attendance_log} log ON log.sessionid = ses.id\r\nGROUP BY c.shortname, a.name, ses.sessdate, ses.duration\r\nORDER BY ses.sessdate DESC\r\nLIMIT 200",
+            "courseid": 0,
+            "visible": 1,
+            "chartmeta": {
+                "type": "none",
+                "xcol": "",
+                "ycol": "",
+                "rowlimit": ""
+            }
         }
     ]
 }

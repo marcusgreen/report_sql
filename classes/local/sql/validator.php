@@ -611,6 +611,30 @@ class validator {
     }
 
     /**
+     * Distinct Moodle `{tablename}` references in a query, lower-cased.
+     *
+     * String literals and comments are blanked first, so a `{word}` inside a literal or comment is
+     * not mistaken for a table reference. Only the braced form is recognised — the same convention
+     * {@see auto_brace()} normalises every query to — so a hand-written unbraced/prefixed table is
+     * not returned. Used to work out which plugins a query depends on (see
+     * {@see \report_sql\local\transfer::detect_requires()}).
+     *
+     * @param string $sql Stored SQL.
+     * @return string[] Distinct lower-cased table names (no braces), in first-seen order.
+     */
+    public static function braced_tables(string $sql): array {
+        $stripped = self::strip_comments_and_strings($sql);
+        $tables = [];
+        if (preg_match_all('/\{([a-z0-9_]+)\}/i', $stripped, $matches)) {
+            foreach ($matches[1] as $table) {
+                $table = strtolower($table);
+                $tables[$table] = true;
+            }
+        }
+        return array_keys($tables);
+    }
+
+    /**
      * Count SELECT keywords at parenthesis depth 0 to detect bare multi-statement SQL
      * (two SELECTs with no semicolon separator).
      *
