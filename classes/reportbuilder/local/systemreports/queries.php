@@ -187,6 +187,22 @@ class queries extends system_report {
     }
 
     /**
+     * Whether the filter_sqlreports plugin (which renders the [[sqlreport:ID]] embed marker) is
+     * installed. When absent the marker is inert, so the "Copy embed code" action and its hidden
+     * clipboard target are suppressed. Memoized — the per-row action/column callbacks call this
+     * once per rendered row.
+     *
+     * @return bool
+     */
+    private static function embed_filter_installed(): bool {
+        static $installed = null;
+        if ($installed === null) {
+            $installed = \core_component::get_component_directory('filter_sqlreports') !== null;
+        }
+        return $installed;
+    }
+
+    /**
      * Add a leading column rendering the most-used actions (Edit query, and the status-exclusive
      * Publish / Unpublish pair) as inline buttons, so they sit outside the kebab menu holding the rest.
      *
@@ -254,7 +270,10 @@ class queries extends system_report {
                 // queries have an RB report id, so drafts emit nothing. The id is the *report* id
                 // (as in /reportbuilder/view.php?id=), NOT the query id in the edit.php URL.
                 $marker = '';
-                if ($row->status === query::STATUS_PUBLISHED && !empty($row->reportid)) {
+                if (
+                    self::embed_filter_installed()
+                        && $row->status === query::STATUS_PUBLISHED && !empty($row->reportid)
+                ) {
                     $marker = html_writer::span(
                         s('[[sqlreport:' . (int) $row->reportid . ']]'),
                         'sr-only',
@@ -366,7 +385,10 @@ class queries extends system_report {
             false,
             new lang_string('embedcodecopy', 'report_sql')
         ))->add_callback(static function (\stdClass $row): bool {
-            if ($row->status !== query::STATUS_PUBLISHED || empty($row->reportid)) {
+            if (
+                !self::embed_filter_installed()
+                    || $row->status !== query::STATUS_PUBLISHED || empty($row->reportid)
+            ) {
                 return false;
             }
             // Injected onto the (cloned) row so replace_placeholders() can resolve :embedtarget.
