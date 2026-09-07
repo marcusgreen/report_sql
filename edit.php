@@ -235,12 +235,16 @@ if ($mform->is_cancelled()) {
                 ['id' => $newid, 'justpublished' => 1],
                 'id_useridfilterheader'
             );
+            // Returning to the form (with sections unlocked) — no need for the RB-editor call to action.
+            $publishmsg = get_string('savedandpublished', 'report_sql');
         } else {
             $publishtarget = $returnurl;
+            // Returning to the listing — link straight to the RB editor so the customise step isn't missed.
+            $publishmsg = report_sql_published_message(query::get($newid)->reportid());
         }
         redirect(
             $publishtarget,
-            get_string('savedandpublished', 'report_sql'),
+            $publishmsg,
             null,
             \core\output\notification::NOTIFY_SUCCESS
         );

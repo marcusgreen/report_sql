@@ -426,3 +426,28 @@ function report_sql_preview_chart(array $args, string $viewname, array $meta): s
     ]);
     return \html_writer::div($img, 'mb-3');
 }
+
+/**
+ * Build the success message shown after a query is published and the user is returned to the listing.
+ * Publishing generates the Report Builder report, but the "customise report" step happens on the RB
+ * editor — easy to miss once you land back on the index. Appending a prominent button-link straight
+ * to that editor turns the invisible next step into a visible call to action inside the notification.
+ *
+ * The button uses a dark background with forced white text (inline, so it beats the success alert's
+ * inherited link colour) to stay readable and contrast the green notification.
+ *
+ * @param int|null $reportid Report Builder report id produced by publish (null → plain confirmation).
+ * @return string HTML suitable for a redirect()/notification message.
+ */
+function report_sql_published_message(?int $reportid): string {
+    $confirm = get_string('savedandpublished', 'report_sql');
+    if (empty($reportid)) {
+        return $confirm;
+    }
+    $link = \html_writer::link(
+        new \moodle_url('/reportbuilder/edit.php', ['id' => $reportid]),
+        get_string('customisecolumns', 'report_sql'),
+        ['class' => 'btn btn-sm ms-2', 'style' => 'background-color:#212529;color:#fff;']
+    );
+    return $confirm . $link;
+}

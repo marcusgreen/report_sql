@@ -186,6 +186,7 @@ Each report is decoded and run through a fixed translation: MySQL date functions
 
 Imported reports land as drafts owned by you and must be published before they go live. No AI is used — every conversion is a fixed rule.';
 $string['crimport:unavailable'] = 'The Configurable Reports block (block_configurable_reports) is not installed, so there is nothing to import.';
+$string['customisecolumns'] = 'Customise report';
 $string['customsqlimport:intro'] = 'These are the queries found in the Ad-hoc Database Queries report (report_customsql). Importable queries translate cleanly and will be created as drafts owned by you, ready to publish. Rejected queries use features that cannot be converted automatically — port those by hand.';
 $string['customsqlimport:linklabel'] = 'Import from Ad-hoc Database Queries';
 $string['customsqlimport:noneimportable'] = 'No Ad-hoc Database Queries could be translated automatically. See the rejected list below for why.';

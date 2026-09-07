@@ -46,7 +46,8 @@ try {
         case 'publish':
             require_capability('report/sql:approve', $context);
             $query->publish();
-            $msg = get_string('publish', 'report_sql');
+            // Link straight to the RB editor so the customise step isn't missed (see lib.php).
+            $msg = report_sql_published_message(query::get($id)->reportid());
             break;
         case 'unpublish':
             require_capability('report/sql:approve', $context);
