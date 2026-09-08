@@ -761,8 +761,9 @@ class query {
         }
 
         // The save() method runs from entry points that may not have included the plugin's lib.php,
-        // where the shared editor-options helper lives.
+        // where the shared editor-options helper lives, nor core filelib (draft-area functions).
         require_once($CFG->dirroot . '/report/sql/lib.php');
+        require_once($CFG->libdir . '/filelib.php');
 
         $newtext = file_save_draft_area_files(
             $draftid,
@@ -1076,6 +1077,7 @@ class query {
         }
 
         require_once($CFG->dirroot . '/report/sql/lib.php');
+        require_once($CFG->libdir . '/filelib.php');
 
         // Clone any images embedded in the description: prepare a draft area from this query's
         // description files (rewriting URLs back to @@PLUGINFILE@@ tokens), then save that draft

@@ -49,6 +49,10 @@ function report_sql_require_enabled(): void {
  * @return array
  */
 function report_sql_description_editor_options(): array {
+    global $CFG;
+    // EDITOR_UNLIMITED_FILES lives in core formslib, which is not loaded on every entry point that
+    // reaches here (e.g. the query duplicate action).
+    require_once($CFG->libdir . '/formslib.php');
     return [
         'maxfiles'       => EDITOR_UNLIMITED_FILES,
         'maxbytes'       => 0,
