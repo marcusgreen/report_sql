@@ -42,6 +42,10 @@ You can also refer to the SQL already in the editor — prompts like "add a colu
 In particular, starting your prompt with the word **also** pulls in your existing SQL and builds on it — for example "also show the user\'s last login" adds to the current query instead of replacing it.
 
 Always review the generated SQL before saving — the AI can make mistakes.';
+$string['ai:history'] = 'Your recent questions';
+$string['ai:historyempty'] = 'No history yet. Generate a query and it will appear here.';
+$string['ai:historyload'] = 'Load SQL';
+$string['ai:historywhen'] = 'When';
 $string['ai:latency'] = 'Generated in {$a} s — review the SQL before saving.';
 $string['ai:placeholder'] = 'e.g. Show all students enrolled in more than 3 courses';
 $string['ai:prompt'] = 'Prompt sent to the LLM';
