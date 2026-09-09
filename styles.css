@@ -75,6 +75,20 @@
     word-break: break-word;
 }
 
+/* Give the CodeMirror SQL editor a clear, visible border so the editable area reads as a distinct
+   input box rather than blending into the page. Rounded to match Bootstrap form controls; the focus
+   state deepens the border + adds a focus ring, mirroring core .form-control focus. */
+.codemirror-sql-editor .cm-editor {
+    border: 2px solid #767676;
+    border-radius: 0.25rem;
+}
+
+.codemirror-sql-editor .cm-editor.cm-focused {
+    border-color: #0f6cbf;
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(15, 108, 191, 0.25);
+}
+
 /* Bundled-samples picker (samples.php). Each sample is a stacked card: the selection control on the
    left, then name / description / SQL-accordion in a single full-width column (issue #21). This gives
    a large query the whole card width to preview, instead of the old table's cramped middle column. */

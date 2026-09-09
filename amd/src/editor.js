@@ -35,6 +35,8 @@ import {
 import {format as formatSql} from './sql-formatter-lazy';
 import {get_string as getString, get_strings as getStrings} from 'core/str';
 import Ajax from 'core/ajax';
+// Registers the document-level click delegate for [data-action="copytoclipboard"] triggers.
+import 'core/copy_to_clipboard';
 import {
     hasQuestionmarkInString,
     rewriteQuestionmarks,
@@ -237,6 +239,29 @@ const buildEditor = (textarea, schema, fkMap) => {
         })
         .catch(() => null);
     toolbar.appendChild(formatBtn);
+
+    // Copy-to-clipboard via core/copy_to_clipboard: the document-level delegate reads the target's
+    // value on click and shows a success toast. The hidden textarea is the target — its value is
+    // kept current by the updateListener above — so the live editor content is what gets copied.
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'btn btn-outline-secondary btn-sm ms-1';
+    copyBtn.dataset.action = 'copytoclipboard';
+    copyBtn.dataset.clipboardTarget = '#' + textarea.id;
+    copyBtn.textContent = 'Copy SQL';
+    copyBtn.title = 'Copy the SQL to the clipboard';
+    getStrings([
+        {key: 'copysql', component: 'report_sql'},
+        {key: 'copysqltooltip', component: 'report_sql'},
+        {key: 'copysqldone', component: 'report_sql'},
+    ]).then(([label, tooltip, done]) => {
+        copyBtn.textContent = label;
+        copyBtn.title = tooltip;
+        copyBtn.dataset.clipboardSuccessMessage = done;
+        return null;
+    }).catch(() => null);
+    toolbar.appendChild(copyBtn);
+
     container.before(toolbar);
 
     /**
