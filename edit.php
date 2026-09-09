@@ -164,6 +164,18 @@ if ($aisqlchatavailable && $aiaction === 'generate' && $aiquestion !== '') {
     }
 }
 
+// Recall a past question's stored SQL from the history list into the editor.
+// The SQL is normalised to the current showbraces setting so it displays the
+// same way a freshly generated query would, whatever form it was stored in.
+if ($aisqlchatavailable && $aiaction === 'loadsql' && $aicurrentsql !== '') {
+    require_sesskey();
+    $mergedata = $formdefaults ? (array) $formdefaults : [];
+    $mergedata['querysql'] = $showbraces
+        ? validator::auto_brace($aicurrentsql)
+        : validator::strip_braces($aicurrentsql);
+    $formdefaults = (object) $mergedata;
+}
+
 if ($formdefaults !== null) {
     // Prepare the description editor: copy any embedded images into a draft file area and wrap the
     // stored text + format into the {text, format, itemid} value the editor element expects. Uses
@@ -377,6 +389,47 @@ document.querySelectorAll('[data-sqlchat-copy]').forEach(function(btn) {
         'data-generating' => get_string('ai:generating', 'report_sql'),
     ]);
     echo html_writer::end_tag('form');
+
+    // Recall list: the author's own recent questions (across this plugin and the
+    // standalone SQL Chat page). Each row loads its stored SQL into the editor.
+    $history = \local_sqlchat\api::history();
+    echo html_writer::start_tag('details', ['class' => 'mt-3']);
+    echo html_writer::tag('summary', get_string('ai:history', 'report_sql'), ['class' => 'h6']);
+    if (!$history) {
+        echo html_writer::tag('p', get_string('ai:historyempty', 'report_sql'), ['class' => 'text-muted small']);
+    } else {
+        $htable = new html_table();
+        $htable->head = [
+            get_string('ai:question', 'report_sql'),
+            get_string('ai:historywhen', 'report_sql'),
+            '',
+        ];
+        foreach ($history as $h) {
+            $loadform = html_writer::start_tag('form', ['method' => 'post', 'action' => $PAGE->url->out(false)]);
+            // Attribute values are escaped by html_writer; pass the SQL raw.
+            $loadform .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'querysql', 'value' => $h->sqlgenerated]);
+            $loadform .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'aiaction', 'value' => 'loadsql']);
+            $loadform .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+            if ($id) {
+                $loadform .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $id]);
+            }
+            if ($courseid) {
+                $loadform .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'courseid', 'value' => $courseid]);
+            }
+            $loadform .= html_writer::tag('button', get_string('ai:historyload', 'report_sql'), [
+                'type' => 'submit', 'class' => 'btn btn-sm btn-outline-secondary',
+            ]);
+            $loadform .= html_writer::end_tag('form');
+            $htable->data[] = [
+                s(shorten_text($h->question, 120)),
+                userdate($h->timecreated),
+                $loadform,
+            ];
+        }
+        echo html_writer::table($htable);
+    }
+    echo html_writer::end_tag('details');
+
     echo html_writer::end_div(); // End card-body.
     echo html_writer::end_div(); // End card.
 }
