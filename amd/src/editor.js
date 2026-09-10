@@ -35,6 +35,7 @@ import {
 import {format as formatSql} from './sql-formatter-lazy';
 import {get_string as getString, get_strings as getStrings} from 'core/str';
 import Ajax from 'core/ajax';
+import {add as addToast} from 'core/toast';
 // Registers the document-level click delegate for [data-action="copytoclipboard"] triggers.
 import 'core/copy_to_clipboard';
 import {
@@ -243,24 +244,76 @@ const buildEditor = (textarea, schema, fkMap) => {
     // Copy-to-clipboard via core/copy_to_clipboard: the document-level delegate reads the target's
     // value on click and shows a success toast. The hidden textarea is the target — its value is
     // kept current by the updateListener above — so the live editor content is what gets copied.
+    // Icon-only trigger: the accessible name comes from aria-label (there is no visible text for a
+    // screen reader to announce), title gives sighted users the same text as a tooltip.
+    //
+    // A Bootstrap split-button wraps this in a group with a caret toggle: the default click stays a
+    // one-step copy (no change from before), while the rarely-needed "copy with real table names"
+    // variant sits behind the caret instead of permanently occupying its own toolbar button.
+    const copyGroup = document.createElement('div');
+    copyGroup.className = 'btn-group ms-1';
+
     const copyBtn = document.createElement('button');
     copyBtn.type = 'button';
-    copyBtn.className = 'btn btn-outline-secondary btn-sm ms-1';
+    copyBtn.className = 'btn btn-outline-secondary btn-sm';
     copyBtn.dataset.action = 'copytoclipboard';
     copyBtn.dataset.clipboardTarget = '#' + textarea.id;
-    copyBtn.textContent = 'Copy SQL';
+    copyBtn.innerHTML = '<i class="fa fa-copy" aria-hidden="true"></i>';
+    copyBtn.setAttribute('aria-label', 'Copy SQL');
     copyBtn.title = 'Copy the SQL to the clipboard';
+    copyGroup.appendChild(copyBtn);
+
+    const copyToggle = document.createElement('button');
+    copyToggle.type = 'button';
+    copyToggle.className = 'btn btn-outline-secondary btn-sm dropdown-toggle dropdown-toggle-split';
+    copyToggle.dataset.bsToggle = 'dropdown';
+    copyToggle.setAttribute('aria-haspopup', 'true');
+    copyToggle.setAttribute('aria-expanded', 'false');
+    copyToggle.innerHTML = '<span class="visually-hidden">Copy options</span>';
+    copyGroup.appendChild(copyToggle);
+
+    const copyMenu = document.createElement('ul');
+    copyMenu.className = 'dropdown-menu dropdown-menu-end';
+    const copyPrefixedItem = document.createElement('li');
+    const copyPrefixedLink = document.createElement('button');
+    copyPrefixedLink.type = 'button';
+    copyPrefixedLink.className = 'dropdown-item';
+    copyPrefixedLink.textContent = 'Copy SQL with real table names';
+    copyPrefixedItem.appendChild(copyPrefixedLink);
+    copyMenu.appendChild(copyPrefixedItem);
+    copyGroup.appendChild(copyMenu);
+
+    let copyPrefixedDoneMsg = 'SQL copied with real, prefixed table names';
+    let copyPrefixedErrMsg = 'Could not copy the prefixed SQL.';
     getStrings([
         {key: 'copysql', component: 'report_sql'},
         {key: 'copysqltooltip', component: 'report_sql'},
         {key: 'copysqldone', component: 'report_sql'},
-    ]).then(([label, tooltip, done]) => {
-        copyBtn.textContent = label;
+        {key: 'copysqlmenu', component: 'report_sql'},
+        {key: 'copysqlprefixed', component: 'report_sql'},
+        {key: 'copysqlprefixeddone', component: 'report_sql'},
+        {key: 'errcopyprefixed', component: 'report_sql'},
+    ]).then(([label, tooltip, done, menuLabel, prefixedLabel, prefixedDone, prefixedErr]) => {
+        copyBtn.setAttribute('aria-label', label);
         copyBtn.title = tooltip;
         copyBtn.dataset.clipboardSuccessMessage = done;
+        copyToggle.innerHTML = '<span class="visually-hidden">' + menuLabel + '</span>';
+        copyPrefixedLink.textContent = prefixedLabel;
+        copyPrefixedDoneMsg = prefixedDone;
+        copyPrefixedErrMsg = prefixedErr;
         return null;
     }).catch(() => null);
-    toolbar.appendChild(copyBtn);
+
+    // Not a static DOM value, so core/copy_to_clipboard's data-action delegate can't drive this one:
+    // fetch the rewritten SQL over AJAX first, then copy the result and toast it ourselves.
+    copyPrefixedLink.addEventListener('click', () => {
+        Ajax.call([{methodname: 'report_sql_prefix_sql', args: {sql: textarea.value}}])[0]
+            .then((data) => navigator.clipboard.writeText(data.sql))
+            .then(() => addToast(copyPrefixedDoneMsg, {}))
+            .catch(() => addToast(copyPrefixedErrMsg, {type: 'warning'}));
+    });
+
+    toolbar.appendChild(copyGroup);
 
     container.before(toolbar);
 

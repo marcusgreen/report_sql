@@ -52,6 +52,15 @@ $functions = [
         'capabilities' => 'report/sql:author',
         'loginrequired' => true,
     ],
+    'report_sql_prefix_sql' => [
+        'classname'   => 'report_sql\external\prefix_sql',
+        'methodname'  => 'execute',
+        'description' => 'Rewrite {table} references to real, prefixed table names for copy-out',
+        'type'        => 'read',
+        'ajax'        => true,
+        'capabilities' => 'report/sql:author',
+        'loginrequired' => true,
+    ],
     'report_sql_get_embed' => [
         'classname'   => 'report_sql\external\get_embed',
         'methodname'  => 'execute',
