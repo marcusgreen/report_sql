@@ -44,6 +44,12 @@ $justpublished = optional_param('justpublished', 0, PARAM_BOOL);
 // SQL currently in the "SQL (select only)" field, posted alongside an AI generate request so a
 // prompt that refers to existing SQL ("add a column to this", "fix this error") can use it as basis.
 $aicurrentsql = optional_param('querysql', '', PARAM_RAW);
+// Prior turns of this AI editing session (question+SQL pairs, oldest first, JSON-encoded), so a
+// follow-up like "just the top 5 of those" can resolve against more than the single most recent
+// SQL. Round-tripped through a hidden field across page reloads; local_sqlchat holds no session
+// state itself, so this plugin owns the turn list. Reset (see 'loadsql' below) whenever the editor
+// content changes for a reason other than continuing the current thread.
+$aihistoryraw = optional_param('aihistory', '', PARAM_RAW_TRIMMED);
 $context = context_system::instance();
 require_capability('report/sql:author', $context);
 
@@ -121,25 +127,43 @@ if ($aisqlchatavailable && get_config('report_sql', 'syntaxhighlight')) {
     $PAGE->requires->js_call_amd('report_sql/ai_feedback', 'init');
 }
 
+// Decode the round-tripped turn history. Never trust it blindly — a tampered or stale field
+// should degrade to "no history" rather than error, so validate shape defensively.
+$aihistory = [];
+if ($aihistoryraw !== '') {
+    $decoded = json_decode($aihistoryraw, true);
+    if (is_array($decoded)) {
+        foreach ($decoded as $turn) {
+            if (is_array($turn) && isset($turn['question'], $turn['sql'])) {
+                $aihistory[] = ['question' => (string) $turn['question'], 'sql' => (string) $turn['sql']];
+            }
+        }
+    }
+}
+
 if ($aisqlchatavailable && $aiaction === 'generate' && $aiquestion !== '') {
     require_sesskey();
     try {
-        // When the question refers to the SQL already in the editor, feed that SQL to the AI as the
-        // basis of the prompt. Skip if the SQL is already embedded (the error-fix path appends it
-        // client-side) so it isn't duplicated.
+        // Feed the SQL already in the editor to the AI as basis context on every request, not only
+        // when the question superficially looks like a follow-up (the old regex gate missed cases
+        // like "just the top 5 of those"). Labelled so the model ignores it when the question starts
+        // a new, unrelated report. Skip only if the SQL is already embedded (the error-fix path
+        // appends it client-side) so it isn't duplicated.
         $prompt = $aiquestion;
         $currentsql = trim($aicurrentsql);
-        if (
-            $currentsql !== '' &&
-            query_naming::refers_to_existing_sql($aiquestion) &&
-            strpos($aiquestion, $currentsql) === false
-        ) {
-            $prompt = $aiquestion . "\n\nExisting SQL to use as the basis:\n" . $currentsql;
+        if ($currentsql !== '' && strpos($aiquestion, $currentsql) === false) {
+            $prompt = $aiquestion . "\n\nExisting SQL in the editor right now (context only — ignore"
+                . " if this question starts a new, unrelated report):\n" . $currentsql;
         }
         // Pass our token rules as the third arg so the AI emits report_sql %%…%%
         // tokens (dates, case, context, …); they resolve when the view is built.
         // local_sqlchat itself knows nothing about these tokens.
-        $airesult = \local_sqlchat\api::generate_sql($prompt, $context->id, view::ai_prompt_rules());
+        $airesult = \local_sqlchat\api::generate_sql($prompt, $context->id, view::ai_prompt_rules(), $aihistory);
+        // Carry this turn forward for the next request, capped so the round-tripped field (and the
+        // prompt built from it) don't grow without bound across a long editing session.
+        $aihistory[] = ['question' => $aiquestion, 'sql' => $airesult->sql];
+        $aihistory = array_slice($aihistory, -3);
+        $aihistoryraw = json_encode($aihistory);
         $mergedata = $formdefaults ? (array) $formdefaults : [];
         $mergedata['querysql'] = $showbraces
             ? $airesult->sql
@@ -174,6 +198,9 @@ if ($aisqlchatavailable && $aiaction === 'loadsql' && $aicurrentsql !== '') {
         ? validator::auto_brace($aicurrentsql)
         : validator::strip_braces($aicurrentsql);
     $formdefaults = (object) $mergedata;
+    // Recalling a different past question starts a fresh thread — its SQL has no relation to
+    // whatever conversation was in progress.
+    $aihistoryraw = '';
 }
 
 if ($formdefaults !== null) {
@@ -375,6 +402,13 @@ document.querySelectorAll('[data-sqlchat-copy]').forEach(function(btn) {
         'name'  => 'querysql',
         'id'    => 'rs-ai-currentsql',
         'value' => is_object($formdefaults) ? ($formdefaults->querysql ?? '') : '',
+    ]);
+    // Round-trips the last few turns of this AI editing session (see $aihistoryraw above) so a
+    // follow-up question can resolve references against more than the single most recent SQL.
+    echo html_writer::empty_tag('input', [
+        'type'  => 'hidden',
+        'name'  => 'aihistory',
+        'value' => $aihistoryraw,
     ]);
     if ($id) {
         echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $id]);
