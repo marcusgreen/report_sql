@@ -54,6 +54,7 @@ class get_embed extends external_api {
             'reportid'     => new external_value(PARAM_INT, 'Report Builder report id (as in the RB view URL)'),
             'mode'         => new external_value(PARAM_ALPHA, 'Display mode: auto|table|chart', VALUE_DEFAULT, 'auto'),
             'pagecourseid' => new external_value(PARAM_INT, 'Host page course id (0 = none)', VALUE_DEFAULT, 0),
+            'render'       => new external_value(PARAM_ALPHA, 'Render variant: ""|rb', VALUE_DEFAULT, ''),
         ]);
     }
 
@@ -63,13 +64,15 @@ class get_embed extends external_api {
      * @param int $reportid
      * @param string $mode
      * @param int $pagecourseid
+     * @param string $render Render variant: ''|rb. 'rb' currently falls back to the static table;
+     *     the interactive Report Builder output is not yet wired up here.
      * @return array{html: string}
      */
-    public static function execute(int $reportid, string $mode = 'auto', int $pagecourseid = 0): array {
-        ['reportid' => $reportid, 'mode' => $mode, 'pagecourseid' => $pagecourseid] =
+    public static function execute(int $reportid, string $mode = 'auto', int $pagecourseid = 0, string $render = ''): array {
+        ['reportid' => $reportid, 'mode' => $mode, 'pagecourseid' => $pagecourseid, 'render' => $render] =
             self::validate_parameters(
                 self::execute_parameters(),
-                ['reportid' => $reportid, 'mode' => $mode, 'pagecourseid' => $pagecourseid]
+                ['reportid' => $reportid, 'mode' => $mode, 'pagecourseid' => $pagecourseid, 'render' => $render]
             );
 
         // Session/login gate only; the real per-report access is core RB's context + audience below.
