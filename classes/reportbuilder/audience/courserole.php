@@ -29,8 +29,9 @@ use MoodleQuickForm;
  *
  * A role assignment counts when it is made AT the course context or at any ancestor context (so a
  * manager assigned at category or site level still matches, mirroring how Moodle role inheritance
- * works). Generated programmatically by {@see \report_sql\local\report_visibility::apply()}
- * and never offered in the Report Builder audience UI.
+ * works). Generated programmatically by {@see \report_sql\local\report_visibility::apply()};
+ * also manually addable through the core Report Builder audience picker, with its own
+ * course + role picker widgets.
  *
  * configdata: ['courseid' => int, 'roles' => int[]].
  *
@@ -40,13 +41,20 @@ use MoodleQuickForm;
  */
 class courserole extends base {
     /**
-     * No interactive config: course id and roles are injected at publish time.
+     * Course picker + role picker. The role list is drawn from roles assignable at course
+     * context level generically (using the front page course as a stand-in context, the same
+     * trick core's systemrole audience uses at system context) rather than any specific
+     * course, since the config form is rendered before a course may have been chosen.
      *
      * @param MoodleQuickForm $mform
      */
     public function get_config_form(MoodleQuickForm $mform): void {
-        $mform->addElement('hidden', 'courseid');
-        $mform->setType('courseid', PARAM_INT);
+        $mform->addElement('course', 'courseid', get_string('course'), ['multiple' => false]);
+        $mform->addRule('courseid', null, 'required', null, 'client');
+
+        $roles = get_assignable_roles(context_course::instance(SITEID), ROLENAME_ALIAS);
+        $mform->addElement('autocomplete', 'roles', get_string('selectrole', 'role'), $roles, ['multiple' => true]);
+        $mform->addRule('roles', null, 'required', null, 'client');
     }
 
     /**
@@ -108,29 +116,55 @@ class courserole extends base {
     }
 
     /**
-     * Description shown on the report's audience card.
+     * Description shown on the report's audience card, naming the bound course and roles.
      *
      * @return string
      */
     public function get_description(): string {
-        return get_string('audiencecourseroledesc', 'report_sql');
+        global $DB;
+
+        $config   = $this->get_configdata();
+        $courseid = (int) ($config['courseid'] ?? 0);
+        $roleids  = array_map('intval', (array) ($config['roles'] ?? []));
+
+        $coursename = $DB->get_field('course', 'fullname', ['id' => $courseid]);
+        if ($coursename === false) {
+            $coursename = get_string('audiencecoursemissing', 'report_sql');
+        }
+
+        $roles = $roleids ? $DB->get_records_list('role', 'id', $roleids, 'sortorder') : [];
+        $rolenames = role_fix_names($roles, context_system::instance(), ROLENAME_ALIAS, true);
+
+        return get_string('audiencecourseroledesc', 'report_sql', format_string($coursename)) . ' '
+            . $this->format_description_for_multiselect($rolenames);
     }
 
     /**
-     * Only plugin publishers create this audience type.
+     * Anyone with approve capability and at least one assignable course-level role can add
+     * this audience type (its own course + role picker let them configure it, independent of
+     * any report_sql query).
      *
      * @return bool
      */
     public function user_can_add(): bool {
-        return has_capability('report/sql:approve', context_system::instance());
+        if (!has_capability('report/sql:approve', context_system::instance())) {
+            return false;
+        }
+
+        return (bool) get_assignable_roles(context_course::instance(SITEID), ROLENAME_ALIAS);
     }
 
     /**
-     * Only plugin publishers edit this audience type.
+     * Editable while the bound course still exists and the user retains approve capability.
      *
      * @return bool
      */
     public function user_can_edit(): bool {
-        return has_capability('report/sql:approve', context_system::instance());
+        if (!has_capability('report/sql:approve', context_system::instance())) {
+            return false;
+        }
+
+        $courseid = (int) ($this->get_configdata()['courseid'] ?? 0);
+        return (bool) context_course::instance($courseid, IGNORE_MISSING);
     }
 }

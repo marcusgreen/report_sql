@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace report_sql\reportbuilder\audience;
 
+use context_course;
 use context_system;
 use core_reportbuilder\local\audiences\base;
 use core_reportbuilder\local\helpers\database;
@@ -27,8 +28,9 @@ use MoodleQuickForm;
  * Audience matching the enrolled participants of a single course.
  *
  * Generated programmatically by {@see \report_sql\local\query::publish()} for queries
- * scoped to a course (courseid > 0); it is never offered in the Report Builder audience UI. The
- * bound course id is carried in configdata as ['courseid' => int].
+ * scoped to a course (courseid > 0); also manually addable through the core Report Builder
+ * audience picker, with its own course-selector widget. The bound course id is carried in
+ * configdata as ['courseid' => int].
  *
  * @package   report_sql
  * @copyright 2026 Marcus Green
@@ -36,13 +38,14 @@ use MoodleQuickForm;
  */
 class courseparticipant extends base {
     /**
-     * No interactive config: the course id is injected at publish time.
+     * Course picker; when injected programmatically at publish time, courseid is preset and
+     * the field is simply not touched by the user.
      *
      * @param MoodleQuickForm $mform
      */
     public function get_config_form(MoodleQuickForm $mform): void {
-        $mform->addElement('hidden', 'courseid');
-        $mform->setType('courseid', PARAM_INT);
+        $mform->addElement('course', 'courseid', get_string('course'), ['multiple' => false]);
+        $mform->addRule('courseid', null, 'required', null, 'client');
     }
 
     /**
@@ -76,16 +79,25 @@ class courseparticipant extends base {
     }
 
     /**
-     * Description shown on the report's audience card.
+     * Description shown on the report's audience card, naming the bound course.
      *
      * @return string
      */
     public function get_description(): string {
-        return get_string('audiencecourseparticipantdesc', 'report_sql');
+        global $DB;
+
+        $courseid = (int) ($this->get_configdata()['courseid'] ?? 0);
+        $coursename = $DB->get_field('course', 'fullname', ['id' => $courseid]);
+        if ($coursename === false) {
+            $coursename = get_string('audiencecoursemissing', 'report_sql');
+        }
+
+        return get_string('audiencecourseparticipantdesc', 'report_sql', format_string($coursename));
     }
 
     /**
-     * Only plugin publishers create this audience type.
+     * Anyone with approve capability can add this audience type (its own course picker lets
+     * them choose the course, independent of any report_sql query).
      *
      * @return bool
      */
@@ -94,11 +106,16 @@ class courseparticipant extends base {
     }
 
     /**
-     * Only plugin publishers edit this audience type.
+     * Editable while the bound course still exists and the user retains approve capability.
      *
      * @return bool
      */
     public function user_can_edit(): bool {
-        return has_capability('report/sql:approve', context_system::instance());
+        if (!has_capability('report/sql:approve', context_system::instance())) {
+            return false;
+        }
+
+        $courseid = (int) ($this->get_configdata()['courseid'] ?? 0);
+        return (bool) context_course::instance($courseid, IGNORE_MISSING);
     }
 }
