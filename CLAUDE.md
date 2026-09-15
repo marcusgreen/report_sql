@@ -104,9 +104,11 @@ The RB context + audience logic lives in `classes/local/report_visibility.php` (
 
 The method is **idempotent**: it deletes existing audiences for the report before re-adding, so re-publishing or toggling visibility never accumulates duplicates. These reports are created solely by this plugin, so wiping their audiences is safe.
 
-Two of the audience classes are **custom** — core ships no "enrolled in / has a role in course X" audience — and both are generated programmatically only, never offered in the RB audience UI:
+Two of the audience classes are **custom** — core ships no "enrolled in / has a role in course X" audience. Both are generated programmatically by this plugin (via `report_visibility::apply()` / `query::publish()`), and are also standalone-usable: their `get_config_form()` has real widgets (a `course` AJAX picker, plus a role autocomplete for `courserole`), and `user_can_add()` gates on `report/sql:approve` (+ at least one assignable course-level role for `courserole`), so core RB's own "Add audience" picker at `/reportbuilder/edit.php#audience` lists them too — a user can attach either one to *any* RB report, unrelated to this plugin. `get_description()` resolves the bound course's name (and role names) at render time rather than a static string, since the course is no longer always this query's own scope. `user_can_edit()` additionally requires the bound course still to exist:
 - `courseparticipant` (`classes/reportbuilder/audience/courseparticipant.php`) — active enrolments in a course; `configdata` = `['courseid' => int]`.
 - `courserole` (`classes/reportbuilder/audience/courserole.php`) — users holding given roles in a course; `configdata` = `['courseid' => int, 'roles' => int[]]`.
+
+Being standalone-usable does **not** make the plugin's own Audience picker redundant. `apply()` is idempotent by *deleting all existing audiences on the report, then re-adding from `audiencemeta`* — so any audience added by hand through core RB's own UI (on a report this plugin manages) is wiped on the next publish. The plugin's picker is the only path whose intent survives re-publish, SQL edits, or a course-scope change; core RB's picker is for reports outside this plugin's lifecycle, or one-off manual audiences on a report you don't intend to re-publish.
 
   (`cohortmember` for the `cohort` choice is core's own audience, not custom.)
 
