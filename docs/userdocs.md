@@ -229,6 +229,7 @@ Below the SQL box is a **Test query** button. It runs your SQL against the datab
 
 - whether the query is valid and executes, and how many **rows** it returns;
 - likely **performance issues** — full table scans, missing indexes, non-sargable filters, large or `DISTINCT` result sets;
+- which output columns are **indexed** / **not indexed** at the database level — a plain column (not an expression) is checked against its source table's indexes and listed either way, so you can tell a slow-looking report is actually filtering/sorting on an unindexed column before you publish it;
 - **date columns** — integer columns that look like stored timestamps. Each is listed as a clickable name; **click one to wrap its select-list expression in [`%%TIMESTAMP()%%`](#timestampexpr--epoch-to-date)** in place, so it displays as a formatted, sortable date. (A `SELECT DISTINCT` is preserved — the token wraps only the column, not the `DISTINCT` keyword.) If the column's expression can't be located automatically (e.g. `SELECT *`), you're told to wrap it by hand.
 
 The button is **advisory only** — it never blocks saving or publishing.
@@ -245,6 +246,7 @@ What it does:
 - Rows are **scoped to you** — your per-user / per-course filters apply.
 - Columns show their configured formatting (`%%TIMESTAMP()%%`, `%%CASE()%%`, …); rows follow the query's `ORDER BY`.
 - Shows the same **row count + performance warnings** as Test query above the table.
+- Indexed columns get a small green bolt icon next to their name in the table header (hover for "Indexed column"); unindexed columns are left plain, since most columns in a typical report aren't indexed and marking every one of them would be noisier than useful.
 - If a **chart** is configured, draws it above the table off the same data.
 - Opens in a collapsible panel; click **Preview** again to refresh after edits.
 

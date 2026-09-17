@@ -63,9 +63,12 @@ class analyser {
      *  runs, and date-column introspection reuses the supplied view instead of building a second one.
      * @return array{ok: bool, error: string, compiledsql: string, rowcount: int, elapsed: int,
      *     datecolumns: string[], casecolumns: array<array{col: string, mode: string}>,
-     *     suggestions: string[], warnings: string[], indexinfo: string[]}
+     *     suggestions: string[], warnings: string[], indexinfo: string[],
+     *     columnindex: array<array{col: string, indexed: bool}>}
      *     `elapsed` is the row-count probe's wall-clock in milliseconds (a proxy for report cost), or
-     *     -1 when it could not be measured.
+     *     -1 when it could not be measured. `columnindex` covers only output columns that are a bare
+     *     source-table column reference; expression columns (functions, tokens, computed values) are
+     *     omitted since "indexed" has no meaning for them.
      */
     public static function analyse(string $sql, int $courseid = 0, ?string $viewname = null): array {
         $result = [
@@ -79,6 +82,7 @@ class analyser {
             'suggestions' => [],
             'warnings'    => [],
             'indexinfo'   => [],
+            'columnindex' => [],
         ];
 
         // Reuse the static validator so we analyse the same auto-braced SQL that publish would.
@@ -128,7 +132,10 @@ class analyser {
                 $result['elapsed'] = max(1, (int) round((microtime(true) - $t0) * 1000));
             }
             $result['datecolumns'] = self::date_columns($validated, $resolved, $viewname);
-            $result['indexinfo'] = self::index_report($validated, $resolved, $result['warnings']);
+            preg_match_all('/\{(\w+)\}/', $validated, $tablematches);
+            $tables = array_unique($tablematches[1]);
+            $result['indexinfo'] = self::index_report($validated, $resolved, $tables, $result['warnings']);
+            $result['columnindex'] = self::column_index_status($validated, $tables);
         } finally {
             // The DB connection may be reused (or persistent) for the rest of the request, so always
             // restore the server default — never leak the cap onto later, unrelated queries.
@@ -322,16 +329,13 @@ class analyser {
      * an unindexed one (an unindexed sort makes the database order the whole result).
      *
      * @param string $validated Auto-braced validated SQL (table names are {braced}).
-     * @param string $resolved Placeholder-resolved SQL.
+     * @param string $resolved Placeholder-resolved SQL (fed to EXPLAIN).
+     * @param string[] $tables Referenced base table names (unbraced), from the {table} placeholders.
      * @param string[] $warnings Collected warnings (appended in place).
      * @return string[] Actionable index lines (empty unless the sort hint applies).
      */
-    private static function index_report(string $validated, string $resolved, array &$warnings): array {
+    private static function index_report(string $validated, string $resolved, array $tables, array &$warnings): array {
         $lines = [];
-
-        // The {tablename} placeholders survive validation, so referenced tables are easy to recover.
-        preg_match_all('/\{(\w+)\}/', $validated, $m);
-        $tables = array_unique($m[1]);
 
         $ordercols = self::order_by_columns($validated);
         if ($ordercols) {
@@ -381,15 +385,27 @@ class analyser {
         return array_keys($cols);
     }
 
+    /** @var string[] Keywords that can immediately follow a {table} reference without being an alias
+     * for it (join syntax and clause starts) — guards {@see self::table_aliases()} against mistaking
+     * "{course} JOIN ..." or "{course} WHERE ..." for an aliased table.
+     */
+    private const NON_ALIAS_KEYWORDS = [
+        'where', 'group', 'order', 'having', 'limit', 'on', 'using', 'union', 'except', 'intersect',
+        'join', 'inner', 'left', 'right', 'full', 'outer', 'cross', 'natural', 'set', 'into', 'values',
+    ];
+
     /**
-     * Distinct lowercased *leading* columns of every index on the referenced base tables, including
-     * the primary key (which get_indexes() omits). Only the leading column of an index can satisfy
-     * an ORDER BY / anchor a lookup, so that is what is offered as the indexed alternative.
+     * Collect indexed columns of the referenced base tables, including the primary key (which
+     * get_indexes() omits). Shared by {@see self::indexed_leading_columns()} (leading columns only —
+     * the only ones that can satisfy an ORDER BY / anchor a lookup) and
+     * {@see self::indexed_columns_all()} (every indexed position — still useful for an equality
+     * lookup even when not leading).
      *
      * @param string[] $tables Base table names (unbraced).
-     * @return string[] Lowercased indexable column names.
+     * @param bool $leadingonly True to collect only each index's first column.
+     * @return string[] Lowercased indexed column names.
      */
-    private static function indexed_leading_columns(array $tables): array {
+    private static function collect_index_columns(array $tables, bool $leadingonly): array {
         global $DB;
 
         $cols = [];
@@ -401,9 +417,9 @@ class analyser {
                 continue; // Not a real table (e.g. a CTE name caught by the regex) — skip.
             }
             foreach ($indexes as $index) {
-                $lead = $index['columns'][0] ?? null;
-                if ($lead !== null) {
-                    $cols[strtolower((string) $lead)] = true;
+                $indexcols = $leadingonly ? array_slice($index['columns'], 0, 1) : $index['columns'];
+                foreach ($indexcols as $col) {
+                    $cols[strtolower((string) $col)] = true;
                 }
             }
             // The get_indexes() call excludes the primary key, but the PK is indexed too (e.g. "id").
@@ -414,6 +430,143 @@ class analyser {
             }
         }
         return array_keys($cols);
+    }
+
+    /**
+     * Distinct lowercased *leading* columns of every index on the referenced base tables, including
+     * the primary key. Only the leading column of an index can satisfy an ORDER BY / anchor a lookup,
+     * so that is what is offered as the indexed alternative.
+     *
+     * @param string[] $tables Base table names (unbraced).
+     * @return string[] Lowercased indexable column names.
+     */
+    private static function indexed_leading_columns(array $tables): array {
+        return self::collect_index_columns($tables, true);
+    }
+
+    /**
+     * Distinct lowercased columns that appear in *any* position of any index on the referenced base
+     * tables, plus the primary key. Unlike {@see self::indexed_leading_columns()} this is not
+     * restricted to leading columns — a non-leading column still benefits an equality lookup or a
+     * composite filter, so it is still worth telling the author "this column is indexed", even
+     * though it would not by itself satisfy an ORDER BY.
+     *
+     * @param string[] $tables Base table names (unbraced).
+     * @return string[] Lowercased indexed column names.
+     */
+    private static function indexed_columns_all(array $tables): array {
+        return self::collect_index_columns($tables, false);
+    }
+
+    /**
+     * Map each referenced table's own name, plus any alias it is given in the FROM/JOIN clause, to
+     * that table name — so a select-list qualifier (`t.col` or `{table}.col`) can be resolved back to
+     * the physical table it reads from, rather than treating every referenced table as one pool of
+     * "possibly this column" (see {@see self::column_index_status()}).
+     *
+     * Best-effort regex scan, not a real parser: it reads only `{table} [AS] alias` pairs immediately
+     * following a brace, guarded by {@see self::NON_ALIAS_KEYWORDS} so `{course} JOIN` or
+     * `{course} WHERE` are not mistaken for `{course}` aliased to "JOIN"/"WHERE". A qualifier that
+     * cannot be resolved this way (an alias missed by the scan) falls back to the caller's
+     * merged-across-tables behaviour.
+     *
+     * @param string $validated Auto-braced validated SQL.
+     * @param string[] $tables Referenced base table names (unbraced), from the {table} placeholders.
+     * @return array<string, string> Lowercased alias/table name => physical table name.
+     */
+    private static function table_aliases(string $validated, array $tables): array {
+        $map = [];
+        foreach ($tables as $table) {
+            // A qualifier can also just be the table's own {braced} name, unaliased.
+            $map[strtolower($table)] = $table;
+        }
+        $mask = self::mask_sql($validated);
+        if (preg_match_all('/\{(\w+)\}\s+(?:AS\s+)?([A-Za-z_]\w*)\b/i', $mask, $m, PREG_SET_ORDER)) {
+            foreach ($m as $pair) {
+                if (in_array(strtolower($pair[2]), self::NON_ALIAS_KEYWORDS, true)) {
+                    continue;
+                }
+                $map[strtolower($pair[2])] = $pair[1];
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * Split one select-list item into its expression and trailing alias, using the masked SQL to
+     * locate a trailing "AS alias" so quoted text inside the expression can't fool the match. Shared
+     * by {@see self::case_columns()} and {@see self::column_index_status()}.
+     *
+     * @param string $orig Original-SQL slice for this item.
+     * @param string $maskitem Same-offset masked-SQL slice for this item.
+     * @return array{0: string, 1: string} [expression (alias stripped), alias (empty when none)].
+     */
+    private static function split_item_alias(string $orig, string $maskitem): array {
+        if (preg_match('/\bas\s+(["`]?)(\w+)\1\s*$/i', $maskitem, $am, PREG_OFFSET_CAPTURE)) {
+            $expr = substr($orig, 0, $am[0][1]);
+            $alias = trim((string) preg_replace('/^\s*as\s+/i', '', substr($orig, $am[0][1])), " `\"");
+            return [$expr, $alias];
+        }
+        return [$orig, ''];
+    }
+
+    /**
+     * Map each output column that is a bare source-table column reference to whether that source
+     * column is indexed. Expression columns (function calls, %%TOKEN%%s, computed values) are
+     * omitted — "indexed" is not a meaningful question for them, and reporting them as "not indexed"
+     * would misleadingly suggest a fixable gap.
+     *
+     * Only a select-list item consisting of a single identifier, optionally qualified with a
+     * {table}/alias prefix and/or an AS alias, is treated as a bare column reference. When the
+     * qualifier resolves to a specific table (via {@see self::table_aliases()}), the index lookup is
+     * scoped to that table only — otherwise (no qualifier, or an alias the scan missed) it falls back
+     * to the merged indexed-column set across every referenced table, so a column indexed on one
+     * joined table can no longer be wrongly reported as indexed for a same-named column on another.
+     *
+     * @param string $validated Auto-braced validated SQL.
+     * @param string[] $tables Referenced base table names (unbraced), from the {table} placeholders.
+     * @return array<array{col: string, indexed: bool}> One entry per resolvable output column.
+     */
+    private static function column_index_status(string $validated, array $tables): array {
+        $mask = self::mask_sql($validated);
+        $region = self::select_list_region($mask);
+        if ($region === null) {
+            return [];
+        }
+        [$start, $end] = $region;
+
+        $aliasmap = self::table_aliases($validated, $tables);
+        $mergedindex = self::indexed_columns_all($tables);
+        $bytable = []; // Per-table indexed-column cache, populated on demand.
+
+        $out = [];
+        foreach (self::split_items($mask, $start, $end) as [$from, $to]) {
+            $orig = substr($validated, $from, $to - $from);
+            $maskitem = substr($mask, $from, $to - $from);
+            [$expr, $alias] = self::split_item_alias($orig, $maskitem);
+
+            // A bare column reference: optional {table}/alias qualifier, then one identifier, and
+            // nothing else — no operators, parens or function calls.
+            if (!preg_match('/^\s*(?:([\{\w]+)\}?\.)?(\w+)\s*$/', $expr, $cm)) {
+                continue;
+            }
+            $sourcecol = strtolower($cm[2]);
+            $outname = $alias !== '' ? $alias : $cm[2];
+
+            $qualifier = $cm[1] !== '' ? strtolower(trim($cm[1], '{')) : '';
+            $table = $qualifier !== '' ? ($aliasmap[$qualifier] ?? null) : null;
+            if ($table !== null) {
+                if (!array_key_exists($table, $bytable)) {
+                    $bytable[$table] = self::indexed_columns_all([$table]);
+                }
+                $indexed = in_array($sourcecol, $bytable[$table], true);
+            } else {
+                $indexed = in_array($sourcecol, $mergedindex, true);
+            }
+
+            $out[] = ['col' => $outname, 'indexed' => $indexed];
+        }
+        return $out;
     }
 
     /**
@@ -615,15 +768,7 @@ class analyser {
         foreach (self::split_items($mask, $start, $end) as [$from, $to]) {
             $orig = substr($validated, $from, $to - $from);
             $maskitem = substr($mask, $from, $to - $from);
-
-            // Trailing "AS alias" located on the mask (so quoted text can't fool it), sliced from
-            // the original. What precedes it is the column expression.
-            $expr = $orig;
-            $alias = '';
-            if (preg_match('/\bas\s+(["`]?)(\w+)\1\s*$/i', $maskitem, $am, PREG_OFFSET_CAPTURE)) {
-                $expr = substr($orig, 0, $am[0][1]);
-                $alias = trim((string) preg_replace('/^\s*as\s+/i', '', substr($orig, $am[0][1])), " `\"");
-            }
+            [$expr, $alias] = self::split_item_alias($orig, $maskitem);
             $maskexpr = substr($maskitem, 0, strlen($expr));
 
             // The whole expression must be a single case call (bar an optional leading DISTINCT).

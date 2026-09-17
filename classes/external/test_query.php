@@ -52,7 +52,8 @@ class test_query extends external_api {
      * @param int $courseid
      * @return array{ok: bool, error: string, compiledsql: string, rowcount: int, elapsed: int,
      *     datecolumns: string[], casecolumns: array<array{col: string, mode: string}>,
-     *     suggestions: string[], warnings: string[], indexinfo: string[]}
+     *     suggestions: string[], warnings: string[], indexinfo: string[],
+     *     columnindex: array<array{col: string, indexed: bool}>}
      */
     public static function execute(string $sql, int $courseid = 0): array {
         ['sql' => $sql, 'courseid' => $courseid] =
@@ -117,6 +118,15 @@ class test_query extends external_api {
             'indexinfo'   => new external_multiple_structure(
                 new external_value(PARAM_TEXT, 'Index line'),
                 'Per-table index / row-count lines',
+                VALUE_DEFAULT,
+                []
+            ),
+            'columnindex' => new external_multiple_structure(
+                new external_single_structure([
+                    'col'     => new external_value(PARAM_TEXT, 'Output column name'),
+                    'indexed' => new external_value(PARAM_BOOL, 'True if the source column is indexed'),
+                ]),
+                'Bare source-table output columns, each flagged indexed or not (expression columns omitted)',
                 VALUE_DEFAULT,
                 []
             ),
