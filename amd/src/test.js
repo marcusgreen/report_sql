@@ -133,6 +133,7 @@ const render = async(container, data, sqlField) => {
     appendList(container, data.suggestions, 'alert-warning');
     appendList(container, data.warnings, 'alert-warning');
     appendList(container, data.indexinfo, 'alert-secondary');
+    await appendColumnIndexAlert(container, data.columnindex);
 
     if (!datecols.length && !casecols.length && !data.suggestions.length && !data.warnings.length) {
         const ok = await getString('checkallgood', 'report_sql');
@@ -310,6 +311,28 @@ const appendFixLink = async(alertDiv, sqlField, strkey, rewrite) => {
  */
 const appendList = (container, lines, cls) => {
     (lines || []).forEach((line) => container.appendChild(alertBox(cls, line)));
+};
+
+/**
+ * Append one alert listing which bare-column output columns are indexed, and which are not.
+ * Expression columns are absent from columnindex and skipped entirely (see analyser::column_index_status()).
+ *
+ * @param {HTMLElement} container
+ * @param {Array<{col: string, indexed: boolean}>} columnindex
+ */
+const appendColumnIndexAlert = async(container, columnindex) => {
+    const cols = columnindex || [];
+    if (!cols.length) {
+        return;
+    }
+    const indexed = cols.filter((c) => c.indexed).map((c) => c.col);
+    const notindexed = cols.filter((c) => !c.indexed).map((c) => c.col);
+    if (indexed.length) {
+        container.appendChild(alertBox('alert-secondary', await getString('checkindexedcolumns', 'report_sql', indexed.join(', '))));
+    }
+    if (notindexed.length) {
+        container.appendChild(alertBox('alert-secondary', await getString('checknotindexedcolumns', 'report_sql', notindexed.join(', '))));
+    }
 };
 
 /**

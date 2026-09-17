@@ -244,6 +244,84 @@ final class analyser_test extends \advanced_testcase {
     }
 
     /**
+     * Bare column references are flagged indexed / not indexed by source column.
+     */
+    public function test_column_index_status_flags_bare_columns(): void {
+        $this->resetAfterTest();
+        // {user}.id is the primary key (indexed); {user}.description has no index.
+        $result = analyser::analyse('SELECT id, description FROM {user}');
+        $this->assertTrue($result['ok']);
+        $bycol = [];
+        foreach ($result['columnindex'] as $entry) {
+            $bycol[$entry['col']] = $entry['indexed'];
+        }
+        $this->assertTrue($bycol['id']);
+        $this->assertFalse($bycol['description']);
+    }
+
+    /**
+     * An expression column (not a bare column reference) is omitted from columnindex entirely.
+     */
+    public function test_column_index_status_skips_expressions(): void {
+        $this->resetAfterTest();
+        $result = analyser::analyse("SELECT id, UPPER(username) AS uname FROM {user}");
+        $this->assertTrue($result['ok']);
+        $cols = array_column($result['columnindex'], 'col');
+        $this->assertContains('id', $cols);
+        $this->assertNotContains('uname', $cols);
+    }
+
+    /**
+     * An aliased bare column reference is keyed by its output alias, not the source column name.
+     */
+    public function test_column_index_status_uses_alias(): void {
+        $this->resetAfterTest();
+        $result = analyser::analyse('SELECT id AS userid FROM {user}');
+        $this->assertTrue($result['ok']);
+        $bycol = [];
+        foreach ($result['columnindex'] as $entry) {
+            $bycol[$entry['col']] = $entry['indexed'];
+        }
+        $this->assertArrayHasKey('userid', $bycol);
+        $this->assertTrue($bycol['userid']);
+    }
+
+    /**
+     * A qualified column is checked against its own table's indexes, not the merged set across every
+     * joined table — course.idnumber is indexed but course_categories.idnumber is not, so a query
+     * joining them must not report cc.idnumber as indexed just because course.idnumber is.
+     */
+    public function test_column_index_status_scoped_to_qualified_table(): void {
+        $this->resetAfterTest();
+        $result = analyser::analyse(
+            'SELECT cc.idnumber FROM {course_categories} cc JOIN {course} c ON c.category = cc.id'
+        );
+        $this->assertTrue($result['ok']);
+        $bycol = [];
+        foreach ($result['columnindex'] as $entry) {
+            $bycol[$entry['col']] = $entry['indexed'];
+        }
+        $this->assertFalse($bycol['idnumber']);
+    }
+
+    /**
+     * The same query, qualifying the column on the table where it *is* indexed, still reports it
+     * correctly indexed — confirms the scoping in the previous test isn't just always "false".
+     */
+    public function test_column_index_status_scoped_to_qualified_table_indexed(): void {
+        $this->resetAfterTest();
+        $result = analyser::analyse(
+            'SELECT c.idnumber FROM {course_categories} cc JOIN {course} c ON c.category = cc.id'
+        );
+        $this->assertTrue($result['ok']);
+        $bycol = [];
+        foreach ($result['columnindex'] as $entry) {
+            $bycol[$entry['col']] = $entry['indexed'];
+        }
+        $this->assertTrue($bycol['idnumber']);
+    }
+
+    /**
      * A LIKE pattern with a leading wildcard is flagged as non-indexable.
      */
     public function test_leading_wildcard_warned(): void {

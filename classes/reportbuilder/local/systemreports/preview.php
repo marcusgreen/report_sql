@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace report_sql\reportbuilder\local\systemreports;
 
 use core_reportbuilder\system_report;
+use lang_string;
 use report_sql\reportbuilder\local\entities\adhoc_view;
 
 /**
@@ -63,8 +64,31 @@ class preview extends system_report {
         $this->add_columns_from_entities($columns);
 
         // Preview is non-interactive: strip sorting from every column so no header sort links render.
+        // Also badge each indexed header with the analyser's index status (bare source-table columns
+        // only — expression columns carry no badge, see analyser::column_index_status()). Unindexed
+        // columns are left alone: badging every column that is *not* indexed made the common case
+        // (most columns unindexed) the noisy one, so only the indexed exception is marked.
+        $columnindex = json_decode($this->get_parameter('columnindex', '[]', PARAM_RAW), true) ?: [];
+        $indexed = [];
+        foreach ($columnindex as $entry) {
+            if (!empty($entry['indexed'])) {
+                $indexed[strtolower((string) ($entry['col'] ?? ''))] = true;
+            }
+        }
         foreach ($this->get_columns() as $column) {
             $column->set_is_sortable(false);
+            $colname = strtolower((string) preg_replace('/^.*:/', '', $column->get_unique_identifier()));
+            if (isset($indexed[$colname])) {
+                $badge = \html_writer::tag('i', '', [
+                    'class'       => 'fa fa-bolt text-success ms-1',
+                    'title'       => get_string('indexedcolumn', 'report_sql'),
+                    'aria-hidden' => 'true',
+                ]);
+                // Routed through the generic '{$a}' passthrough string (see adhoc_view::raw_title()),
+                // rather than a new lang string per badge, since the markup is fixed and only the
+                // column name varies.
+                $column->set_title(new lang_string('reportsourceheader', 'report_sql', $column->get_title() . $badge));
+            }
         }
 
         // Reproduce the query's ORDER BY (primary term only) so the preview rows match the order the

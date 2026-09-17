@@ -271,6 +271,12 @@ function report_sql_output_fragment_preview(array $args): string {
             }
         }
 
+        // Run the advisory analyser once — row count, warnings, and per-column index status — and
+        // reuse its output both for the summary strip and to badge the column headers below.
+        // Passing $viewname makes the analyser skip its own dry-run and probe view (this view already
+        // proved the SQL runs).
+        $feedback = \report_sql\local\sql\analyser::analyse($sql, $courseid, $viewname);
+
         $report = \core_reportbuilder\system_report_factory::create(
             \report_sql\reportbuilder\local\systemreports\preview::class,
             $context,
@@ -283,14 +289,14 @@ function report_sql_output_fragment_preview(array $args): string {
                 'title'       => get_string('preview', 'report_sql'),
                 'sortcolumn'  => $sortcolumn,
                 'sortdir'     => $sortdir,
+                'columnindex' => json_encode($feedback['ok'] ? $feedback['columnindex'] : []),
             ]
         );
 
-        // Reuse the just-built preview view to attach the same advisory summary the Test button
-        // shows — row count and performance warnings — so a preview doubles as a lightweight test
-        // without standing up a second view. Passing $viewname makes the analyser skip its own
-        // dry-run and probe view. Advisory only: any failure degrades to just the rendered rows.
-        $summary = report_sql_preview_summary($sql, $courseid, $viewname);
+        // Reuse the already-computed feedback for the advisory summary — row count and performance
+        // warnings — so a preview doubles as a lightweight test without a second analyser pass.
+        // Advisory only: any failure degrades to just the rendered rows.
+        $summary = report_sql_preview_summary($feedback);
 
         // When a chart is configured on the (unsaved) form, render it above the table off the same
         // preview view, so the author sees the graph their axis choices produce before publishing.
@@ -310,16 +316,15 @@ function report_sql_output_fragment_preview(array $args): string {
 
 /**
  * Build the advisory summary strip shown above the inline preview rows: row count and any
- * performance warnings, from {@see \report_sql\local\sql\analyser::analyse()} run against
- * the caller's already-built preview view.
+ * performance warnings. Index status is not repeated here — it's already badged on the column
+ * headers (see preview::initialise()).
  *
- * @param string $sql Raw author SQL (re-validated inside analyse()).
- * @param int $courseid Bound course id (0 = site-wide).
- * @param string $viewname Unprefixed name of the live preview view to reuse for introspection.
+ * @param array $feedback Result of {@see \report_sql\local\sql\analyser::analyse()}, already run by
+ *  the caller against its preview view (shared with the column-header badges — never call analyse()
+ *  a second time here, its probes are not cheap).
  * @return string Summary HTML, or '' when the analysis yields nothing worth showing.
  */
-function report_sql_preview_summary(string $sql, int $courseid, string $viewname): string {
-    $feedback = \report_sql\local\sql\analyser::analyse($sql, $courseid, $viewname);
+function report_sql_preview_summary(array $feedback): string {
     if (!$feedback['ok']) {
         // The rows rendered, so a failed advisory pass is not worth surfacing here.
         return '';
@@ -334,6 +339,10 @@ function report_sql_preview_summary(string $sql, int $courseid, string $viewname
             : get_string('checkrowcount', 'report_sql', $feedback['rowcount']);
     }
     $lines = array_merge($lines, $feedback['warnings']);
+
+    // Unlike Test query (no table to annotate), Preview already badges indexed columns in the header
+    // (see preview::initialise()) — an indexed/not-indexed text line here would just repeat that.
+
     if (!$lines) {
         return '';
     }
