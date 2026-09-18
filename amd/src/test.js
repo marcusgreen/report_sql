@@ -328,10 +328,14 @@ const appendColumnIndexAlert = async(container, columnindex) => {
     const indexed = cols.filter((c) => c.indexed).map((c) => c.col);
     const notindexed = cols.filter((c) => !c.indexed).map((c) => c.col);
     if (indexed.length) {
-        container.appendChild(alertBox('alert-secondary', await getString('checkindexedcolumns', 'report_sql', indexed.join(', '))));
+        const indexedstr = await getString(
+            'checkindexedcolumns', 'report_sql', indexed.join(', '));
+        container.appendChild(alertBox('alert-secondary', indexedstr));
     }
     if (notindexed.length) {
-        container.appendChild(alertBox('alert-secondary', await getString('checknotindexedcolumns', 'report_sql', notindexed.join(', '))));
+        const notindexedstr = await getString(
+            'checknotindexedcolumns', 'report_sql', notindexed.join(', '));
+        container.appendChild(alertBox('alert-secondary', notindexedstr));
     }
 };
 
