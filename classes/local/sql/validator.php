@@ -220,6 +220,10 @@ class validator {
             }
         }
 
+        // Double-quoted and backtick-quoted tokens are identifiers on PostgreSQL / MySQL ANSI_QUOTES,
+        // but are blanked in $stripped. Unquote them and apply the same table/column denylists.
+        self::check_quoted_identifiers($sql);
+
         // Each JOIN needs an ON/USING condition — catch the common mistake before the
         // DB returns a cryptic syntax error.
         self::check_join_conditions($tree, $stripped);
@@ -437,6 +441,51 @@ class validator {
         $sql = preg_replace("/'(?:[^']|'')*'/", "''", $sql) ?? '';
         $sql = preg_replace('/"(?:[^"]|"")*"/', '""', $sql) ?? '';
         return $sql;
+    }
+
+    /**
+     * Reject quoted identifiers ("name" or `name`) that name a denied table or column.
+     *
+     * The table may be written with the DB prefix (e.g. "mdl_config"), which is removed before
+     * comparing. Quoted aliases that are not denied (e.g. AS "Course_Shortname") remain allowed.
+     *
+     * @param string $sql Brace-wrapped SQL.
+     * @return void
+     * @throws \moodle_exception when a quoted identifier is a denied table or column.
+     */
+    private static function check_quoted_identifiers(string $sql): void {
+        global $CFG;
+
+        $sql = preg_replace('/\/\*.*?\*\//s', ' ', $sql) ?? '';
+        $sql = preg_replace('/--[^\n]*/', ' ', $sql) ?? '';
+        $sql = preg_replace('/#[^\n]*/', ' ', $sql) ?? '';
+        $sql = preg_replace("/'(?:[^']|'')*'/", "''", $sql) ?? '';
+
+        if (!preg_match_all('/"((?:[^"]|"")*)"|`((?:[^`]|``)*)`/', $sql, $matches, PREG_SET_ORDER)) {
+            return;
+        }
+
+        $prefix = strtolower((string) $CFG->prefix);
+        $tables = self::denied_tables();
+        $columns = self::denied_columns();
+        foreach ($matches as $m) {
+            $name = strtolower(trim(str_replace(['""', '``'], '', ($m[1] ?? '') . ($m[2] ?? ''))));
+            if ($name === '') {
+                continue;
+            }
+            $candidates = [$name];
+            if ($prefix !== '' && str_starts_with($name, $prefix)) {
+                $candidates[] = substr($name, strlen($prefix));
+            }
+            foreach ($candidates as $candidate) {
+                if (in_array($candidate, $tables, true)) {
+                    throw new \moodle_exception('errdeniedtable', 'report_sql', '', $candidate);
+                }
+            }
+            if (in_array($name, $columns, true)) {
+                throw new \moodle_exception('errdeniedcolumn', 'report_sql', '', $name);
+            }
+        }
     }
 
     /**

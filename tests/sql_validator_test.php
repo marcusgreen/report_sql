@@ -212,6 +212,37 @@ final class sql_validator_test extends \advanced_testcase {
         $this->assertNotEmpty(validator::validate("SELECT id, 'password' AS label FROM {user}"));
     }
 
+    /**
+     * Data provider of SQL using quoted identifiers (PostgreSQL / MySQL ANSI_QUOTES) to reach denied objects.
+     *
+     * @return array
+     */
+    public static function quoted_identifier_bypass_provider(): array {
+        return [
+            'quoted prefixed denied table'   => ['SELECT * FROM "{prefix}config"'],
+            'quoted denied table and column' => ['SELECT "token" FROM "{prefix}external_tokens"'],
+            'quoted denied column'           => ['SELECT "password" FROM {user}'],
+            'quoted aliased denied column'   => ['SELECT "password" AS pw FROM {user}'],
+            'backtick denied column'         => ['SELECT `password` FROM {user}'],
+            'backtick prefixed denied table' => ['SELECT * FROM `{prefix}config`'],
+        ];
+    }
+
+    /**
+     * Quoted identifiers must not hide denied tables or columns from the denylist.
+     *
+     * @dataProvider quoted_identifier_bypass_provider
+     * @param string $sql SQL containing a {prefix} placeholder for the real table prefix.
+     */
+    public function test_quoted_identifier_cannot_bypass_denylist(string $sql): void {
+        global $CFG;
+        $this->resetAfterTest();
+        set_config('denycolumns', 'password,secret,sesskey,token', 'report_sql');
+
+        $this->expectException(\moodle_exception::class);
+        validator::validate(str_replace('{prefix}', $CFG->prefix, $sql));
+    }
+
     public function test_denytable_setting_adds_custom_table(): void {
         $this->resetAfterTest();
         // A table not in the built-in baseline is rejected once the admin adds it to 'denytables'.
