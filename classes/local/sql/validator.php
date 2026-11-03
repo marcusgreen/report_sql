@@ -260,7 +260,8 @@ class validator {
      * Whether a `%%...%%` token is one the plugin substitutes at view-build time.
      *
      * Exact tokens: %%WWWROOT%%, %%COURSEID%%, %%COURSECONTEXT%%, %%NOW%% and the %%CONTEXT_*%% level
-     * constants (%%CONTEXT_COURSE%% etc.). The parameterised %%TIMESTAMP(expr)%% (epoch
+     * constants (%%CONTEXT_COURSE%% etc.). %%DAYS(n)%% (n whole days in seconds) admits only an
+     * integer n. The parameterised %%TIMESTAMP(expr)%% (epoch
      * column → datetime, rendered per dialect), %%EPOCH(datetime)%% (datetime literal/expr → epoch
      * int, per dialect), %%CASE(expr, mode)%% (text column → upper/lower/title/sentence case,
      * applied per-viewer as a display callback), %%GROUP_CONCAT([DISTINCT ]expr[, sep])%%
@@ -284,6 +285,10 @@ class validator {
             if (strcasecmp($token, $exact) === 0) {
                 return true;
             }
+        }
+        // Token %%DAYS(n)%% takes only a non-negative integer literal (no expressions), so anything else is rejected.
+        if (preg_match('/^%%DAYS\(\s*\d+\s*\)%%$/i', $token)) {
+            return true;
         }
         return (bool) preg_match(
             '/^%%(?:TIMESTAMP|EPOCH|CASE|GROUP_CONCAT|LINK|VIEWER|TEACHES|PAGECOURSE)\(.+\)%%$/i',

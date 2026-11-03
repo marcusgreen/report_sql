@@ -15,6 +15,7 @@ following tokens exist specifically to paper over dialect differences:
 |---|---|---|
 | `%%NOW%%` | `UNIX_TIMESTAMP()` | `EXTRACT(EPOCH FROM now())::int` |
 | `%%EPOCH(datetime)%%` | `UNIX_TIMESTAMP(arg)` | `EXTRACT(EPOCH FROM <arg>)::int` |
+| `%%DAYS(n)%%` | `(n * 86400)` | `(n * 86400)` |
 | `%%GROUP_CONCAT([DISTINCT ]expr[, 'sep'])%%` | `GROUP_CONCAT([DISTINCT ]expr SEPARATOR 'sep')` | `string_agg([DISTINCT ](expr)::text, 'sep')` |
 
 Notes:

@@ -308,6 +308,7 @@ resolves:
 | `%%COURSEID%%` | bound course id |
 | `%%COURSECONTEXT%%` / `%%CONTEXT_*%%` | context ids / context-level constants (`view::context_level_tokens()`) |
 | `%%NOW%%` | current epoch int — `UNIX_TIMESTAMP()` (MySQL) / `EXTRACT(EPOCH FROM now())::int` (Postgres) |
+| `%%DAYS(n)%%` | `(n * 86400)` — integer literal only, no dialect function |
 | `%%TIMESTAMP(expr[, format])%%` | the **bare epoch expression** `(expr)` — no DB date function (so it sorts; typing/format applied later from `columnsmeta`) |
 | `%%EPOCH(datetime)%%` | epoch int in the live dialect (string literals get an explicit Postgres `TIMESTAMP` cast) |
 | `%%CASE(expr, mode)%%` | the **bare text expression** `(expr)` — `mode` (`upper`/`lower`/`title`/`sentence`) is dropped from SQL and re-applied as a display callback from `columnsmeta` `textcase`, so the stored value (and sort/filter) stay on the original text |

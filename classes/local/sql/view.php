@@ -265,7 +265,8 @@ class view {
     function: write %%NOW%%, never %%NOW()%% or NOW(). Do relative-time maths on it
     with plain integer arithmetic in seconds (1 hour = 3600, 1 day = 86400) — e.g.
     "last 24 hours" is WHERE timemodified >= %%NOW%% - 86400, "last 7 days" is
-    %%NOW%% - 7 * 86400. Never use SQL INTERVAL, DATE_SUB/DATE_ADD, or NOW() for
+    %%NOW%% - %%DAYS(7)%% (%%DAYS(n)%% is n whole days in seconds; n must be a
+    plain integer). Never use SQL INTERVAL, DATE_SUB/DATE_ADD, or NOW() for
     relative time — those are dialect-specific and will be rejected.
   - %%EPOCH(datetime)%% converts a fixed datetime STRING LITERAL to a Unix-epoch
     integer, for WHERE against an epoch column — e.g. WHERE timecreated >=
@@ -354,6 +355,15 @@ RULES;
         // Token %%NOW%% — current Unix time, expanded to the dialect of the live database.
         $postgres = $DB->get_dbfamily() === 'postgres';
         $sql = str_ireplace('%%NOW%%', $postgres ? 'EXTRACT(EPOCH FROM now())::int' : 'UNIX_TIMESTAMP()', $sql);
+
+        // Token %%DAYS(n)%% — a whole number of days as seconds, for readable relative-time maths on %%NOW%%
+        // (e.g. %%NOW%% - %%DAYS(7)%%). Plain integer arithmetic, so identical on every DB family. The
+        // validator only admits a non-negative integer literal for n.
+        $sql = preg_replace_callback(
+            '/%%DAYS\(\s*(\d+)\s*\)%%/i',
+            static fn(array $m): string => '(' . (int) $m[1] . ' * 86400)',
+            $sql
+        ) ?? $sql;
 
         // Token %%EPOCH(datetime)%% — a datetime literal/expression → Unix epoch int, in the live dialect.
         // String literals get Postgres's explicit TIMESTAMP cast so the value reads as a datetime;

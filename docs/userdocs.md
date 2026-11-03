@@ -270,6 +270,7 @@ The plugin supports a small, fixed set of placeholder forms in your SQL. Everyth
 | `%%COURSECONTEXT%%` | The bound course's context row id (`mdl_context.id`) | Requires a course scope on the query |
 | `%%CONTEXT_COURSE%%` (and `%%CONTEXT_SYSTEM%%`, `%%CONTEXT_USER%%`, `%%CONTEXT_COURSECAT%%`, `%%CONTEXT_MODULE%%`, `%%CONTEXT_BLOCK%%`) | The matching Moodle context-**level** constant (`%%CONTEXT_COURSE%%` → `50`) | No course scope needed |
 | `%%NOW%%` | Current Unix time (integer seconds) | Cross-database |
+| `%%DAYS(n)%%` | `n` whole days as seconds (`n * 86400`), for readable maths on `%%NOW%%` | Cross-database; `n` must be a plain integer |
 | `%%EPOCH(datetime)%%` | A datetime literal/expression as Unix time (integer seconds) | Cross-database |
 | `%%TIMESTAMP(expr[, format])%%` | `expr` (an epoch column) as a date, optionally formatted | Cross-database; date-sortable |
 | `%%CASE(expr, mode)%%` | `expr` (a text column) displayed in `upper`, `lower`, `title` or `sentence` case | Cross-database; stored value unchanged, so it still sorts/filters on the original text |
@@ -410,6 +411,20 @@ SELECT id, username
 FROM user
 WHERE lastlogin > %%NOW%% - (120 * 86400)
 ```
+
+### `%%DAYS(n)%%` — days as seconds
+
+Replaced with `(n * 86400)`, so date windows read as days rather than magic numbers. Pure integer arithmetic — identical on every database.
+
+```sql
+-- Grades changed in the last 7 days
+SELECT g.id, g.finalgrade
+FROM grade_grades g
+WHERE g.timemodified >= %%NOW%% - %%DAYS(7)%%
+```
+
+- `n` must be a whole, non-negative number (`%%DAYS(7)%%`); expressions or decimals are rejected. For hours, use plain arithmetic (`%%NOW%% - 6 * 3600`).
+- This is a *rolling* window (exactly n × 24 hours before now), not "since midnight n days ago".
 
 ### `%%EPOCH(datetime)%%` — date literal to epoch
 

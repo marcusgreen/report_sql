@@ -87,6 +87,18 @@ final class view_test extends \advanced_testcase {
     }
 
     /**
+     * %%DAYS(n)%% expands to a portable integer-seconds expression (no dialect function).
+     */
+    public function test_resolve_days_token(): void {
+        $this->resetAfterTest();
+
+        $resolved = view::resolve_placeholders('SELECT id FROM {user} WHERE lastlogin > %%NOW%% - %%DAYS( 7 )%%');
+
+        $this->assertStringContainsString('- (7 * 86400)', $resolved);
+        $this->assertStringNotContainsString('%%', $resolved);
+    }
+
+    /**
      * %%NOW%% expands to the current-epoch expression for the live database.
      */
     public function test_resolve_now_token_is_dialect(): void {
