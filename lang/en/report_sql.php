@@ -447,6 +447,7 @@ $string['tokenhintcontextsystem'] = 'CONTEXT_SYSTEM level constant (10)';
 $string['tokenhintcontextuser'] = 'CONTEXT_USER level constant (30)';
 $string['tokenhintcoursecontext'] = "Bound course's context row id";
 $string['tokenhintcourseid'] = 'Bound course id (0 = site-wide)';
+$string['tokenhintdays'] = 'Whole days as seconds, e.g. %%NOW%% - %%DAYS(7)%%';
 $string['tokenhintepoch'] = 'Datetime literal/expression to Unix epoch integer';
 $string['tokenhintlink'] = "Link the cell to a site-relative path: LINK(expr, 'path'), where {} in path is the value slot, e.g. '/user/view.php?id={}'. Add a key column, LINK(expr, keycol, 'path'), to key the link on another output column.";
 $string['tokenhintnow'] = 'Current time as a Unix epoch integer';

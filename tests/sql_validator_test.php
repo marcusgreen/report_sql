@@ -150,6 +150,19 @@ final class sql_validator_test extends \advanced_testcase {
         );
     }
 
+    public function test_days_token_is_supported(): void {
+        // Token %%DAYS(n)%% with an integer literal is recognised, so validation must not reject it.
+        $this->assertNotEmpty(
+            validator::validate('SELECT id FROM {user} WHERE lastlogin > %%NOW%% - %%DAYS(7)%%')
+        );
+    }
+
+    public function test_days_token_rejects_non_integer(): void {
+        // Token %%DAYS(n)%% admits only a plain integer; an expression or decimal is an unknown token.
+        $this->expectException(\moodle_exception::class);
+        validator::validate('SELECT id FROM {user} WHERE lastlogin > %%NOW%% - %%DAYS(u.id)%%');
+    }
+
     public function test_group_concat_token_is_supported(): void {
         // Token %%GROUP_CONCAT(...)%% is recognised by shape, so validation must not reject it as an
         // unfilled placeholder (including the DISTINCT + comma-in-separator form).

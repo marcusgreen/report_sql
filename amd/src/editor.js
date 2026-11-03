@@ -722,6 +722,7 @@ const TOKENS = [
     {label: '%%COURSEID%%', key: 'tokenhintcourseid'},
     {label: '%%COURSECONTEXT%%', key: 'tokenhintcoursecontext'},
     {label: '%%NOW%%', key: 'tokenhintnow'},
+    {label: '%%DAYS()%%', key: 'tokenhintdays', caret: 7},
     {label: '%%CONTEXT_SYSTEM%%', key: 'tokenhintcontextsystem'},
     {label: '%%CONTEXT_USER%%', key: 'tokenhintcontextuser'},
     {label: '%%CONTEXT_COURSECAT%%', key: 'tokenhintcontextcoursecat'},
