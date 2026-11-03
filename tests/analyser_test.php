@@ -203,7 +203,7 @@ final class analyser_test extends \advanced_testcase {
      */
     public function test_sort_unindexed_column_suggests_index(): void {
         $this->resetAfterTest();
-        // Column {user}.description has no index; {user} has indexed columns (e.g. email).
+        // Column {user}.description has no index; {user} has indexed columns (at least the primary key id).
         $result = analyser::analyse('SELECT id, description FROM {user} ORDER BY description');
         $this->assertTrue($result['ok']);
         $joined = implode("\n", $result['indexinfo']);
@@ -216,8 +216,10 @@ final class analyser_test extends \advanced_testcase {
      */
     public function test_sort_indexed_column_no_suggestion(): void {
         $this->resetAfterTest();
-        // Column {user}.email is indexed, so sorting by it needs no advice.
-        $result = analyser::analyse('SELECT id, email FROM {user} ORDER BY email');
+        // Column {report_sql_query}.status is indexed, so sorting by it needs no advice. Uses the plugin's
+        // own table: CI restores core tables from a snapshot without their secondary indexes (primary
+        // key only), whereas plugin tables are installed from install.xml with every index.
+        $result = analyser::analyse('SELECT id, status FROM {report_sql_query} ORDER BY status');
         $this->assertTrue($result['ok']);
         $this->assertSame([], $result['indexinfo']);
     }
@@ -288,20 +290,23 @@ final class analyser_test extends \advanced_testcase {
 
     /**
      * A qualified column is checked against its own table's indexes, not the merged set across every
-     * joined table — course.idnumber is indexed but course_categories.idnumber is not, so a query
-     * joining them must not report cc.idnumber as indexed just because course.idnumber is.
+     * joined table — report_sql_query.reportid is indexed (foreign key) but report_sql_queryview.reportid
+     * is not, so a query joining them must not report v.reportid as indexed just because q.reportid is.
+     *
+     * Uses the plugin's own tables: CI restores core tables from a snapshot without their secondary
+     * indexes (primary key only), whereas plugin tables are installed from install.xml with every index.
      */
     public function test_column_index_status_scoped_to_qualified_table(): void {
         $this->resetAfterTest();
         $result = analyser::analyse(
-            'SELECT cc.idnumber FROM {course_categories} cc JOIN {course} c ON c.category = cc.id'
+            'SELECT v.reportid FROM {report_sql_queryview} v JOIN {report_sql_query} q ON q.id = v.queryid'
         );
         $this->assertTrue($result['ok']);
         $bycol = [];
         foreach ($result['columnindex'] as $entry) {
             $bycol[$entry['col']] = $entry['indexed'];
         }
-        $this->assertFalse($bycol['idnumber']);
+        $this->assertFalse($bycol['reportid']);
     }
 
     /**
@@ -311,14 +316,14 @@ final class analyser_test extends \advanced_testcase {
     public function test_column_index_status_scoped_to_qualified_table_indexed(): void {
         $this->resetAfterTest();
         $result = analyser::analyse(
-            'SELECT c.idnumber FROM {course_categories} cc JOIN {course} c ON c.category = cc.id'
+            'SELECT q.reportid FROM {report_sql_queryview} v JOIN {report_sql_query} q ON q.id = v.queryid'
         );
         $this->assertTrue($result['ok']);
         $bycol = [];
         foreach ($result['columnindex'] as $entry) {
             $bycol[$entry['col']] = $entry['indexed'];
         }
-        $this->assertTrue($bycol['idnumber']);
+        $this->assertTrue($bycol['reportid']);
     }
 
     /**
